@@ -1,0 +1,11 @@
+node_modules/
+.wrangler/
+dist/
+.env
+.env.*
+!.env.example
+.spectra/
+docs/spectra/.vector-search.db*
+docs/references/
+tests/**/test-db*.sqlite
+*.log

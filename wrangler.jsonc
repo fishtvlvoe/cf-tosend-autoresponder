@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "cf-tosend-autoresponder",
+  "main": "src/index.ts",
+  "compatibility_date": "2024-09-23",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "autoresponder_db",
+      "database_id": "YOUR_D1_DATABASE_ID"
+    }
+  ],
+  "triggers": {
+    "crons": ["0 * * * *"]
+  },
+  "vars": {
+    "TOSEND_API_BASE_URL": "https://api.tosend.com/v2",
+    "TOSEND_FROM_EMAIL": "fish@aiver.me",
+    "TOSEND_FROM_NAME": "Autoresponder 團隊",
+    "APP_URL": "https://cf-tosend-autoresponder.workers.dev"
+  }
+}
