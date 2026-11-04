@@ -54,15 +54,17 @@ export async function sendEmailViaToSend(
     html: finalHtml,
   };
 
+  if (payload.unsubscribeUrl) {
+    requestBody.headers = {
+      'List-Unsubscribe': `<${payload.unsubscribeUrl}>`,
+      'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+    };
+  }
+
   const headers: Record<string, string> = {
     Authorization: `Bearer ${apiKey}`,
     'Content-Type': 'application/json',
   };
-
-  if (payload.unsubscribeUrl) {
-    headers['List-Unsubscribe'] = `<${payload.unsubscribeUrl}>`;
-    headers['List-Unsubscribe-Post'] = 'List-Unsubscribe=One-Click';
-  }
 
   try {
     const controller = new AbortController();
