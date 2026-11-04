@@ -40,6 +40,12 @@ export default {
 
     // 0. 中台與後台控制台 UI
     if (url.pathname === '/admin' && request.method === 'GET') {
+      const expected = env.ADMIN_API_KEY || 'secret-token-123';
+      const cookieToken = (request.headers.get('Cookie') || '').match(/admin_token=([^;]+)/)?.[1] || '';
+      // 未登入（無有效 Cookie）導向登入頁，避免進入後 API 全部 401 卻無提示
+      if (cookieToken !== expected) {
+        return Response.redirect(`${url.origin}/login`, 302);
+      }
       return renderAdminConsole();
     }
 

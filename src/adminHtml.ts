@@ -451,7 +451,11 @@ export const adminConsoleHtml = `<!DOCTYPE html>
   <script>
     // 統一的 API Fetch 工具（使用 Cookie 認證，不需要手動帶 token）
     async function apiFetch(url, options = {}) {
-      return fetch(url, Object.assign({ credentials: 'same-origin' }, options));
+      const res = await fetch(url, Object.assign({ credentials: 'same-origin' }, options));
+      if (res.status === 401) {
+        window.location.href = '/login';
+      }
+      return res;
     }
 
     // 頁籤切換（解決 Tailwind hidden 與 display 衝擊問題）
