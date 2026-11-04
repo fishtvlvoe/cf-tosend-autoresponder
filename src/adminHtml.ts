@@ -449,14 +449,9 @@ export const adminConsoleHtml = `<!DOCTYPE html>
   </div>
 
   <script>
-    // 統一的 API Fetch 工具（自動附帶 Authorization）
+    // 統一的 API Fetch 工具（使用 Cookie 認證，不需要手動帶 token）
     async function apiFetch(url, options = {}) {
-      const headers = Object.assign({}, options.headers || {});
-      const token = localStorage.getItem('ADMIN_API_KEY');
-      if (token) {
-        headers['Authorization'] = 'Bearer ' + token;
-      }
-      return fetch(url, Object.assign({}, options, { headers }));
+      return fetch(url, Object.assign({ credentials: 'same-origin' }, options));
     }
 
     // 頁籤切換（解決 Tailwind hidden 與 display 衝擊問題）

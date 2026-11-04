@@ -190,13 +190,22 @@ export function renderLoginPage(): Response {
   </main>
 
   <script>
-    document.getElementById('loginForm').addEventListener('submit', (e) => {
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const token = document.getElementById('apiKey').value.trim();
-      if (token) {
-        localStorage.setItem('ADMIN_API_KEY', token);
+      // 呼叫後端登入 API，讓 Worker 設 HttpOnly Cookie
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
+        credentials: 'same-origin',
+      });
+      if (res.ok) {
+        window.location.href = '/admin';
+      } else {
+        const d = await res.json().catch(() => ({}));
+        alert('登入失敗：' + (d.error || '金鑰錯誤'));
       }
-      window.location.href = '/admin';
     });
   </script>
 </body>

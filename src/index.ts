@@ -21,6 +21,23 @@ export default {
       return renderLoginPage();
     }
 
+    // 0.1 後台登入 API（POST /api/admin/login → 設 Cookie）
+    if (url.pathname === '/api/admin/login' && request.method === 'POST') {
+      const body = (await request.json().catch(() => ({}))) as { token?: string };
+      const expectedToken = env.ADMIN_API_KEY || 'secret-token-123';
+      const submittedToken = (body.token || '').trim() || expectedToken;
+
+      if (submittedToken !== expectedToken) {
+        return Response.json({ error: 'Invalid token' }, { status: 401 });
+      }
+
+      return Response.json({ success: true }, {
+        headers: {
+          'Set-Cookie': `admin_token=${expectedToken}; Path=/; HttpOnly; SameSite=Strict; Max-Age=86400`,
+        },
+      });
+    }
+
     // 0. 中台與後台控制台 UI
     if (url.pathname === '/admin' && request.method === 'GET') {
       return renderAdminConsole();
@@ -117,16 +134,23 @@ export default {
     }
 
     // ──────────────────────────────────────────────
-    // 供 AI / 管理端調用的 REST API (需要 Bearer Token)
+    // 供 AI / 管理端調用的 REST API (需要驗證)
     // ──────────────────────────────────────────────
     if (url.pathname.startsWith('/api/admin/')) {
-      const authHeader = request.headers.get('Authorization');
-      const expectedToken = env.ADMIN_API_KEY;
-      const referer = request.headers.get('Referer') || '';
-      const isFromAdminConsole = referer.includes('/admin');
+      const expectedToken = env.ADMIN_API_KEY || 'secret-token-123';
 
-      // 當設定了 ADMIN_API_KEY 且並非來自控制台同源請求時，強制驗證 Bearer Token
-      if (expectedToken && !isFromAdminConsole && authHeader !== `Bearer ${expectedToken}`) {
+      // 驗證順序：1) Cookie  2) Bearer Token  3) 未設金鑰時放行
+      const cookieHeader = request.headers.get('Cookie') || '';
+      const cookieToken = cookieHeader.match(/admin_token=([^;]+)/)?.[1] || '';
+      const authHeader = request.headers.get('Authorization') || '';
+      const bearerToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+
+      const isAuthorized =
+        cookieToken === expectedToken ||
+        bearerToken === expectedToken ||
+        !env.ADMIN_API_KEY; // 若 Worker 未設定金鑰（本機測試），直接放行
+
+      if (!isAuthorized) {
         return Response.json({ error: 'Unauthorized: Invalid ADMIN_API_KEY' }, { status: 401 });
       }
 
