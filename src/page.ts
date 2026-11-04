@@ -507,14 +507,14 @@ export function renderAdminConsole(): Response {
         delay: 0,
         active: "1",
         subject: "歡迎加入！這是你的第一份專屬精選指南",
-        content: "<p>嗨 <strong>{{name}}</strong>，</p><p>非常感謝你的訂閱！這是你在註冊後立即收到的第一份歡迎信。</p><p>在接下來的幾天裡，我會與你分享最實用的自動化技巧與精選案例。</p><p style=\"text-align: center; margin: 24px 0;\"><a href=\"https://example.com/start\" style=\"background-color: #1c1917; color: #ffffff; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600; display: inline-block;\">立即開始閱讀指南</a></p><p>祝順心！</p>"
+        content: "<p>嗨 <strong>{{name}}</strong>，</p><p>非常感謝你的訂閱！這是你在註冊後立即收到的第一份歡迎信。</p><p>在接下來的幾天裡，我會與你分享最實用的自動化技巧與精選案例。</p><p style='text-align: center; margin: 24px 0;'><a href='https://example.com/start' style='background-color: #1c1917; color: #ffffff; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600; display: inline-block;'>立即開始閱讀指南</a></p><p>祝順心！</p>"
       },
       2: {
         title: "編輯步驟 02：第 2 天跟進信",
         delay: 24,
         active: "1",
-        subject: "第 2 天跟進：核心觀念與最常見誤區",
-        content: "<p>嗨 <strong>{{name}}</strong>，</p><p>距離你訂閱已經過了 24 小時。今天想跟你聊聊在進行郵件自動化時，最常見的 3 個盲點...</p><p style=\"text-align: center; margin: 24px 0;\"><a href=\"https://example.com/case\" style=\"background-color: #1c1917; color: #ffffff; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600; display: inline-block;\">觀看案例解析</a></p><p>希望對你有幫助！</p>"
+        subject: "第 2 天跟進：核心觀念與最常見盲區",
+        content: "<p>嗨 <strong>{{name}}</strong>，</p><p>距離你訂閱已經過了 24 小時。今天想跟你聊聊在進行郵件自動化時，最常見的 3 個盲點...</p><p style='text-align: center; margin: 24px 0;'><a href='https://example.com/case' style='background-color: #1c1917; color: #ffffff; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600; display: inline-block;'>觀看案例解析</a></p><p>希望對你有幫助！</p>"
       },
       3: {
         title: "編輯步驟 03：第 4 天深度解析",
@@ -601,7 +601,8 @@ export function renderAdminConsole(): Response {
     function insertVariable(v) {
       if (!v) return;
       if (currentMode === 'visual') {
-        document.execCommand('insertHTML', false, \`<span style="background-color: #f5f5f4; border: 1px solid #e7e5e4; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 12px; color: #44403c;">\${v}</span>&nbsp;\`);
+        const spanTag = '<span style="background-color: #f5f5f4; border: 1px solid #e7e5e4; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 12px; color: #44403c;">' + v + '</span>&nbsp;';
+        document.execCommand('insertHTML', false, spanTag);
         document.getElementById('html-editor').value = document.getElementById('visual-editor').innerHTML;
       } else {
         const textarea = document.getElementById('html-editor');
@@ -618,7 +619,7 @@ export function renderAdminConsole(): Response {
       const url = prompt("請輸入按鈕連結網址：", "https://");
       if (!url) return;
 
-      const btnHtml = \`<div style="text-align: center; margin: 24px 0;"><a href="\${url}" target="_blank" style="background-color: #1c1917; color: #ffffff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600; display: inline-block;">\${text}</a></div><p></p>\`;
+      const btnHtml = '<div style="text-align: center; margin: 24px 0;"><a href="' + url + '" target="_blank" style="background-color: #1c1917; color: #ffffff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600; display: inline-block;">' + text + '</a></div><p></p>';
       
       if (currentMode === 'visual') {
         document.execCommand('insertHTML', false, btnHtml);
@@ -689,18 +690,36 @@ export function renderAdminConsole(): Response {
     }
 
     function switchTab(t) {
-      ['dashboard', 'sequences', 'subscribers'].forEach(tab => {
-        const el = document.getElementById('tab-' + tab);
-        const btn = document.getElementById('tab-btn-' + tab);
-        if (tab === t) {
-          el.classList.remove('hidden');
-          btn.className = 'tab-active py-3 px-1 border-b-2 text-sm transition';
-        } else {
-          el.classList.add('hidden');
-          btn.className = 'tab-inactive py-3 px-1 border-b-2 text-sm transition';
-        }
-      });
-      document.getElementById('tab-action-btn').style.display = (t === 'sequences') ? 'block' : 'none';
+      const tabDash = document.getElementById('tab-dashboard');
+      const tabSeq = document.getElementById('tab-sequences');
+      const tabSubs = document.getElementById('tab-subscribers');
+      const btnDash = document.getElementById('tab-btn-dashboard');
+      const btnSeq = document.getElementById('tab-btn-sequences');
+      const btnSubs = document.getElementById('tab-btn-subscribers');
+      const actionBtn = document.getElementById('tab-action-btn');
+
+      // 隱藏所有頁籤
+      tabDash.style.display = 'none';
+      tabSeq.style.display = 'none';
+      tabSubs.style.display = 'none';
+
+      btnDash.className = 'tab-inactive py-3 px-1 border-b-2 text-sm transition';
+      btnSeq.className = 'tab-inactive py-3 px-1 border-b-2 text-sm transition';
+      btnSubs.className = 'tab-inactive py-3 px-1 border-b-2 text-sm transition';
+
+      if (t === 'dashboard') {
+        tabDash.style.display = 'block';
+        btnDash.className = 'tab-active py-3 px-1 border-b-2 text-sm transition';
+        actionBtn.classList.add('hidden');
+      } else if (t === 'sequences') {
+        tabSeq.style.display = 'grid';
+        btnSeq.className = 'tab-active py-3 px-1 border-b-2 text-sm transition';
+        actionBtn.classList.remove('hidden');
+      } else if (t === 'subscribers') {
+        tabSubs.style.display = 'block';
+        btnSubs.className = 'tab-active py-3 px-1 border-b-2 text-sm transition';
+        actionBtn.classList.add('hidden');
+      }
     }
 
     async function loadData() {

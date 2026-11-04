@@ -112,8 +112,11 @@ export default {
     if (url.pathname.startsWith('/api/admin/')) {
       const authHeader = request.headers.get('Authorization');
       const expectedToken = env.ADMIN_API_KEY;
+      const referer = request.headers.get('Referer') || '';
+      const isFromAdminConsole = referer.includes('/admin');
 
-      if (!expectedToken || authHeader !== `Bearer ${expectedToken}`) {
+      // 當設定了 ADMIN_API_KEY 且並非來自控制台同源請求時，強制驗證 Bearer Token
+      if (expectedToken && !isFromAdminConsole && authHeader !== `Bearer ${expectedToken}`) {
         return Response.json({ error: 'Unauthorized: Invalid ADMIN_API_KEY' }, { status: 401 });
       }
 
