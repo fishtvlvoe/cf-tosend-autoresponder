@@ -3,7 +3,7 @@ import { DatabaseService } from './db';
 import { renderLandingPage, renderUnsubscribePage, renderAdminConsole, renderLoginPage } from './page';
 import { sendWelcomeEmailIfConfigured, runDripScheduler } from './drip';
 import { sendEmailViaToSend } from './tosend';
-import { hashPassword, verifyPassword, newSessionToken } from './crypto';
+import { hashPassword, verifyPassword, newSessionToken, encryptSecret, decryptSecret } from './crypto';
 
 const SESSION_MAX_AGE_SEC = 7 * 24 * 3600; // 滑動 7 天
 const SETUP_LOCK_MS = 10 * 60 * 1000; // setup-password 鎖定 10 分鐘
@@ -39,6 +39,46 @@ async function issueSession(dbService: DatabaseService): Promise<string> {
 
 function sessionCookie(token: string): string {
   return `haoji_session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${SESSION_MAX_AGE_SEC}`;
+}
+
+// ── settings 常數與輔助（規格書 §4/§5/§7.1）────────────────
+
+/** 可經 settings API 寫入的鍵（唯讀保留鍵以外的白名單） */
+const WRITABLE_SETTINGS = [
+  'tosend_api_key',
+  'tosend_from_email',
+  'tosend_from_name',
+  'site_domain',
+  'landing_title',
+  'landing_intro',
+] as const;
+
+const REQUIRED_SETTINGS = [
+  'tosend_api_key',
+  'tosend_from_email',
+  'tosend_from_name',
+  'site_domain',
+  'landing_title',
+] as const;
+
+/** 寫入後重算 onboarding_done（derived：必填鍵全有值 = 1，否則 0） */
+async function recomputeOnboarding(dbService: DatabaseService): Promise<void> {
+  let done = 1;
+  for (const key of REQUIRED_SETTINGS) {
+    const row = await dbService.getSetting(key);
+    if (!row || row.value === '') { done = 0; break; }
+  }
+  await dbService.setSetting('onboarding_done', String(done));
+}
+
+async function isOnboardingDone(dbService: DatabaseService): Promise<boolean> {
+  const row = await dbService.getSetting('onboarding_done');
+  return row?.value === '1';
+}
+
+/** 設定未完成時的統一阻擋回應（規格書 §7.3） */
+function settingsIncompleteResponse(): Response {
+  return Response.json({ error: '請先完成設定頁' }, { status: 400 });
 }
 
 export default {
@@ -226,6 +266,87 @@ export default {
         return Response.json({ error: '未登入或工作階段已過期' }, { status: 401 });
       }
 
+      // ── settings：讀取（加密鍵永不回明文）────────────────
+      if (url.pathname === '/api/admin/settings' && request.method === 'GET') {
+        const out: Record<string, { value: string | null; set: boolean }> = {};
+        for (const key of WRITABLE_SETTINGS) {
+          const row = await dbService.getSetting(key);
+          out[key] = row && row.value !== ''
+            ? (row.is_encrypted ? { value: null, set: true } : { value: row.value, set: true })
+            : { value: null, set: false };
+        }
+        const onboard = await dbService.getSetting('onboarding_done');
+        return Response.json({ settings: out, onboarding_done: onboard?.value === '1' });
+      }
+
+      // ── settings：單鍵寫入（白名單外 400；金鑰加密落庫）──
+      if (url.pathname === '/api/admin/settings' && request.method === 'POST') {
+        const body = (await request.json().catch(() => ({}))) as { key?: string; value?: string };
+        const key = body.key ?? '';
+        if (key.startsWith('admin_') || key === 'onboarding_done') {
+          return Response.json({ error: '此設定鍵由系統管理，不可寫入' }, { status: 403 });
+        }
+        if (!(WRITABLE_SETTINGS as readonly string[]).includes(key)) {
+          return Response.json({ error: '不支援寫入的設定鍵' }, { status: 400 });
+        }
+        const value = String(body.value ?? '');
+        if (key === 'tosend_api_key') {
+          if (!value) {
+            // 清除金鑰（一鍵重設流程）
+            await dbService.deleteSetting(key);
+          } else {
+            await dbService.setSetting(key, await encryptSecret(value, env.HAOJI_SECRET), 1);
+          }
+        } else {
+          await dbService.setSetting(key, value);
+        }
+        await recomputeOnboarding(dbService);
+        return Response.json({ success: true });
+      }
+
+      // ── settings：ToSend 驗證（不落庫，成功才由前端接續寫入）──
+      if (url.pathname === '/api/admin/settings/verify-tosend' && request.method === 'POST') {
+        const body = (await request.json().catch(() => ({}))) as {
+          api_key?: string; from_email?: string; from_name?: string;
+        };
+        if (!body.api_key || !body.from_email) {
+          return Response.json({ error: '請提供 api_key 與 from_email' }, { status: 400 });
+        }
+        const baseUrl = (env.TOSEND_API_BASE_URL || 'https://api.tosend.com/v2').replace(/\/+$/, '');
+        try {
+          const ctrl = new AbortController();
+          const timer = setTimeout(() => ctrl.abort(), 10000);
+          const res = await fetch(`${baseUrl}/emails`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${body.api_key}`,
+            },
+            body: JSON.stringify({
+              from: `${body.from_name || '好寄'} <${body.from_email}>`,
+              to: [body.from_email],
+              subject: '【好寄】設定驗證信',
+              html: '<p>這是一封系統設定驗證信。收到代表你的 ToSend 金鑰與寄件人設定正確。</p>',
+            }),
+            signal: ctrl.signal,
+          });
+          clearTimeout(timer);
+          if (!res.ok) {
+            const raw = await res.text().catch(() => '');
+            const reason = res.status === 401 || res.status === 403
+              ? 'API Key 無效'
+              : res.status === 422 || res.status === 400
+                ? '寄件信箱尚未在 ToSend 驗證，或格式不正確'
+                : `ToSend 回應錯誤（${res.status}）`;
+            return Response.json({ error: reason, detail: raw.slice(0, 300) }, { status: 400 });
+          }
+          return Response.json({ success: true });
+        } catch (err: any) {
+          const msg = err?.name === 'AbortError' ? '連線 ToSend 逾時（10 秒）' : `無法連線至 ToSend：${String(err?.message || err)}`;
+          return Response.json({ error: msg }, { status: 400 });
+        }
+      }
+
       // AI: 列出名單
       if (url.pathname === '/api/admin/subscribers' && request.method === 'GET') {
         const list = await dbService.listSubscribers(100);
@@ -270,12 +391,19 @@ export default {
 
       // 5. 手動觸發一次排程檢查
       if (url.pathname === '/api/admin/trigger-cron' && request.method === 'POST') {
+        if (!(await isOnboardingDone(dbService))) {
+          console.error('[cron] 設定未完成，跳過本輪');
+          return Response.json({ error: '請先完成設定頁' }, { status: 400 });
+        }
         const sentCount = await runDripScheduler(env, dbService);
         return Response.json({ success: true, sent_count: sentCount });
       }
 
       // 6. 後台個別寄信 (Direct Send)
       if (url.pathname === '/api/admin/send-direct' && request.method === 'POST') {
+        if (!(await isOnboardingDone(dbService))) {
+          return settingsIncompleteResponse();
+        }
         const body = (await request.json()) as {
           email: string;
           name?: string;
@@ -312,6 +440,9 @@ export default {
 
       // 7. 電子報廣播群發 (Campaign Broadcast)
       if (url.pathname === '/api/admin/campaigns/send' && request.method === 'POST') {
+        if (!(await isOnboardingDone(dbService))) {
+          return settingsIncompleteResponse();
+        }
         const body = (await request.json()) as {
           name: string;
           subject: string;

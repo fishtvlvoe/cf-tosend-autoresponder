@@ -24,14 +24,14 @@
 
 - [ ] 2.0 需求覆蓋：本 Phase 對應 Requirement「中文設定頁」（spec.md，驗收情境見其 Scenario）
 
-- [ ] 2.1 `migrations/0000_init.sql`：完整建表（4 既有 + settings），時間欄 UTC ISO 8601
-- [ ] 2.2 db.ts：settings CRUD（唯讀保留鍵 403、未知 key 400、加密鍵不回明文）；寫入後重算 onboarding_done
-- [ ] 2.3 tags 正規化：所有寫入路徑存 `;a;b;`；migration 轉換舊資料
-- [ ] 2.4 GET/POST /api/admin/settings（格式見規格書 §5）
-- [ ] 2.5 POST /api/admin/settings/verify-tosend（不落庫先驗，10 秒逾時，錯誤分類：401 Key 無效／寄件網域未驗證／原文）
-- [ ] 2.6 adminHtml 設定頁（單頁三組、存檔即驗、未完成黃色橫幅切頁籤、HAOJI_SECRET 重設→一鍵清除重設）
-- [ ] 2.7 寄信前檢查：settings 未完成→400「請先完成設定頁」；cron 解密失敗→log + 跳過
-- [ ] 2.8 Gherkin 1、6、8 驗證
+- [x] 2.1 `migrations/0000_init.sql`：完整建表（4 既有 + settings），時間欄 UTC ISO 8601
+- [x] 2.2 db.ts：settings CRUD（唯讀保留鍵 403、未知 key 400、加密鍵不回明文）；寫入後重算 onboarding_done
+- [x] 2.3 tags 正規化：所有寫入路徑存 `;a;b;`；migration 轉換舊資料
+- [x] 2.4 GET/POST /api/admin/settings（格式見規格書 §5）
+- [x] 2.5 POST /api/admin/settings/verify-tosend（不落庫先驗，10 秒逾時，錯誤分類：401 Key 無效／寄件網域未驗證／原文）
+- [x] 2.6 adminHtml 設定頁（單頁三組、存檔即驗、未完成黃色橫幅切頁籤、HAOJI_SECRET 重設→一鍵清除重設）
+- [x] 2.7 寄信前檢查：settings 未完成→400「請先完成設定頁」；cron 解密失敗→log + 跳過
+- [x] 2.8 Gherkin 1、6、8 驗證
 
 ## Phase 3：名單、標籤、CSV（Requirement: 標籤分眾、Requirement: 名單匯入匯出）
 

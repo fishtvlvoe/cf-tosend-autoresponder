@@ -1,15 +1,15 @@
-import { Env, Subscriber, EmailSequence } from './types';
+import { Env, Subscriber, EmailSequence, normalizeTags } from './types';
 
 export class DatabaseService {
   constructor(private db: D1Database) {}
 
   /**
-   * 建立或重新啟用訂閱者
+   * 建立或重新啟用訂閱者（tags 一律正規化為 `;a;b;` 格式）
    */
   async upsertSubscriber(email: string, name?: string, tags?: string): Promise<{ subscriber: Subscriber; isNew: boolean }> {
     const cleanEmail = email.trim().toLowerCase();
     const cleanName = (name || '').trim();
-    const cleanTag = (tags || '一般訂閱').trim();
+    const cleanTag = normalizeTags(tags || '一般訂閱');
 
     // 先查詢既有記錄
     const existing = await this.db
@@ -25,12 +25,13 @@ export class DatabaseService {
           .run();
         existing.status = 'active';
       }
-      if (tags && tags !== existing.tags) {
+      if ((tags && cleanTag !== existing.tags) || (name && cleanName !== existing.name)) {
         await this.db
-          .prepare("UPDATE subscribers SET tags = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
-          .bind(cleanTag, existing.id)
+          .prepare("UPDATE subscribers SET tags = ?, name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+          .bind(cleanTag || existing.tags, cleanName || existing.name, existing.id)
           .run();
-        existing.tags = cleanTag;
+        if (tags) existing.tags = cleanTag;
+        if (name) existing.name = cleanName;
       }
       return { subscriber: existing, isNew: false };
     }
@@ -150,10 +151,48 @@ export class DatabaseService {
    */
   async listSubscribers(limit = 100): Promise<Subscriber[]> {
     const { results } = await this.db
-      .prepare('SELECT * FROM subscribers ORDER BY id DESC LIMIT ?')
+      .prepare("SELECT * FROM subscribers WHERE status != 'deleted' ORDER BY id DESC LIMIT ?")
       .bind(limit)
       .all<Subscriber>();
     return results;
+  }
+
+  /** 管理 API：部分更新聯絡人（tags 覆蓋式且正規化） */
+  async updateSubscriber(id: number, patch: { name?: string; tags?: string; status?: string }): Promise<boolean> {
+    const sets: string[] = [];
+    const params: any[] = [];
+    if (patch.name !== undefined) { sets.push('name = ?'); params.push(patch.name); }
+    if (patch.tags !== undefined) { sets.push('tags = ?'); params.push(normalizeTags(patch.tags)); }
+    if (patch.status !== undefined) { sets.push('status = ?'); params.push(patch.status); }
+    if (!sets.length) return false;
+    sets.push("updated_at = CURRENT_TIMESTAMP");
+    params.push(id);
+    const res = await this.db
+      .prepare(`UPDATE subscribers SET ${sets.join(', ')} WHERE id = ?`)
+      .bind(...params)
+      .run();
+    return (res.meta.changes ?? 0) > 0;
+  }
+
+  /** 軟刪除（FK 關係保留 delivery_logs，故不硬刪） */
+  async softDeleteSubscriber(id: number): Promise<boolean> {
+    return this.updateSubscriber(id, { status: 'deleted' });
+  }
+
+  /** 標籤清單（explode 正規化字串後 GROUP BY 即時計算） */
+  async listTags(): Promise<{ name: string; count: number }[]> {
+    const { results } = await this.db
+      .prepare("SELECT tags FROM subscribers WHERE tags != '' AND status != 'deleted'")
+      .all<{ tags: string }>();
+    const counts = new Map<string, number>();
+    for (const row of results) {
+      for (const t of row.tags.split(';')) {
+        const name = t.trim();
+        if (!name) continue;
+        counts.set(name, (counts.get(name) ?? 0) + 1);
+      }
+    }
+    return [...counts.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
   }
 
   /**
@@ -237,8 +276,8 @@ export class DatabaseService {
       return results;
     }
     const { results } = await this.db
-      .prepare("SELECT * FROM subscribers WHERE status = 'active' AND tags = ? ORDER BY id DESC")
-      .bind(tag)
+      .prepare("SELECT * FROM subscribers WHERE status = 'active' AND tags LIKE ? ESCAPE '\\' ORDER BY id DESC")
+      .bind(`%;${tag.replace(/[%_\\]/g, (c) => '\\' + c)};%`)
       .all<Subscriber>();
     return results;
   }

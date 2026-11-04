@@ -31,7 +31,7 @@ function b64(buf: ArrayBuffer | Uint8Array): string {
     for (const b of bytes) s += String.fromCharCode(b);
     return btoa(s);
   }
-  return Buffer.from(bytes).toString('base64');
+  return (globalThis as any).Buffer.from(bytes).toString('base64');
 }
 
 function unb64(s: string): Uint8Array {
@@ -41,7 +41,7 @@ function unb64(s: string): Uint8Array {
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
     return bytes;
   }
-  return new Uint8Array(Buffer.from(s, 'base64'));
+  return new Uint8Array((globalThis as any).Buffer.from(s, 'base64'));
 }
 
 function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {

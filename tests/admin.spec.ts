@@ -76,6 +76,8 @@ describe('Admin 控制台與 API 端點驗證 (Admin Endpoints)', () => {
     // 預建管理密碼（PBKDF2 在測試中只做一次，後續登入重用）
     sqlite.prepare('INSERT INTO settings (key, value) VALUES (?, ?)')
       .run('admin_password_hash', await hashPassword(ADMIN_PASSWORD));
+    // 預建完成設定的旗標（send 相關測試需通過 onboarding 檢查）
+    sqlite.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('onboarding_done', '1');
     ctx = {
       waitUntil: vi.fn(),
       passThroughOnException: vi.fn(),
@@ -94,8 +96,8 @@ describe('Admin 控制台與 API 端點驗證 (Admin Endpoints)', () => {
     sqlite.prepare(`
       INSERT INTO subscribers (email, status, unsubscribe_token, tags) 
       VALUES 
-        ('user1@example.com', 'active', 'tok-1', 'bni,lead'),
-        ('user2@example.com', 'active', 'tok-2', 'vip'),
+        ('user1@example.com', 'active', 'tok-1', ';bni;lead;'),
+        ('user2@example.com', 'active', 'tok-2', ';vip;'),
         ('user3@example.com', 'unsubscribed', 'tok-3', '')
     `).run();
 
@@ -132,7 +134,7 @@ describe('Admin 控制台與 API 端點驗證 (Admin Endpoints)', () => {
     const row = sqlite.prepare('SELECT * FROM subscribers WHERE email = ?').get('newbie@example.com');
     expect(row).toBeDefined();
     expect(row.name).toBe('Newbie User');
-    expect(row.tags).toBe('bni,taipei');
+    expect(row.tags).toBe(';bni;taipei;');
   });
 
   it('POST /api/admin/sequences 能儲存自動跟進關卡排程並成功查詢', async () => {
@@ -169,7 +171,7 @@ describe('Admin 控制台與 API 端點驗證 (Admin Endpoints)', () => {
     // 建立 1 個活躍訂閱者
     sqlite.prepare(`
       INSERT INTO subscribers (email, name, status, unsubscribe_token, tags) 
-      VALUES ('broadcast_target@example.com', 'Target User', 'active', 'tok-b1', 'newsletter')
+      VALUES ('broadcast_target@example.com', 'Target User', 'active', 'tok-b1', ';newsletter;')
     `).run();
 
     const originalFetch = globalThis.fetch;
@@ -320,5 +322,103 @@ describe('密碼式認證（Phase 1：setup / login / change-password / session 
     const res = await worker.fetch(new Request(BASE + '/admin'), env, ctx);
     expect(res.status).toBe(302);
     expect(res.headers.get('Location')).toContain('/login');
+  });
+});
+
+describe('settings API 與設定檢查（Phase 2：中文設定頁後端）', () => {
+  const BASE = 'https://test-worker.workers.dev';
+  const HAOJI_SECRET = 'test-haoji-secret-32chars-padpadpad';
+  let sqlite: any, mockD1: any, env: any, ctx: any, cookie: string;
+
+  const authPost = (path: string, body: any) =>
+    new Request(BASE + path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookie },
+      body: JSON.stringify(body),
+    });
+  const authGet = (path: string) => new Request(BASE + path, { headers: { Cookie: cookie } });
+
+  beforeEach(async () => {
+    sqlite = new Database(':memory:');
+    sqlite.exec(readFileSync(join(__dirname, '../schema.sql'), 'utf-8'));
+    mockD1 = createMockD1Database(sqlite);
+    env = { DB: mockD1, HAOJI_SECRET, TOSEND_API_KEY: 'k', TOSEND_FROM_EMAIL: 'a@b.c', TOSEND_FROM_NAME: 'n' };
+    ctx = { waitUntil: vi.fn(), passThroughOnException: vi.fn() };
+    sqlite.prepare('INSERT INTO settings (key, value) VALUES (?, ?)')
+      .run('admin_password_hash', await hashPassword('admin-pass-123'));
+    const res = await worker.fetch(
+      new Request(BASE + '/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: 'admin-pass-123' }),
+      }), env, ctx);
+    cookie = res.headers.get('Set-Cookie')!.split(';')[0];
+  });
+
+  it('Gherkin 1：金鑰驗證成功後寫入，GET 不回明文', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, text: async () => '{}' });
+    try {
+      const v = await worker.fetch(authPost('/api/admin/settings/verify-tosend', {
+        api_key: 'sk-live-123', from_email: 'me@mydomain.tw', from_name: '老魚',
+      }), env, ctx);
+      expect(v.status).toBe(200);
+    } finally { globalThis.fetch = originalFetch; }
+
+    const w = await worker.fetch(authPost('/api/admin/settings', { key: 'tosend_api_key', value: 'sk-live-123' }), env, ctx);
+    expect(w.status).toBe(200);
+
+    const g = await worker.fetch(authGet('/api/admin/settings'), env, ctx);
+    const data = await g.json() as any;
+    expect(data.settings.tosend_api_key.set).toBe(true);
+    expect(data.settings.tosend_api_key.value).toBeNull(); // 永不回明文
+    const row = sqlite.prepare("SELECT * FROM settings WHERE key = 'tosend_api_key'").get();
+    expect(row.is_encrypted).toBe(1);
+    expect(row.value).not.toContain('sk-live-123');
+    // 密文可用正確金鑰解密
+    const { decryptSecret } = await import('../src/crypto');
+    await expect(decryptSecret(row.value, HAOJI_SECRET)).resolves.toBe('sk-live-123');
+  });
+
+  it('verify-tosend 失敗分類：401 →「API Key 無效」', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 401, text: async () => 'unauthorized' });
+    try {
+      const v = await worker.fetch(authPost('/api/admin/settings/verify-tosend', {
+        api_key: 'bad-key', from_email: 'me@mydomain.tw',
+      }), env, ctx);
+      expect(v.status).toBe(400);
+      expect((await v.json() as any).error).toContain('API Key 無效');
+    } finally { globalThis.fetch = originalFetch; }
+  });
+
+  it('保留鍵 403、未知鍵 400', async () => {
+    const r1 = await worker.fetch(authPost('/api/admin/settings', { key: 'admin_password_hash', value: 'x' }), env, ctx);
+    expect(r1.status).toBe(403);
+    const r2 = await worker.fetch(authPost('/api/admin/settings', { key: 'onboarding_done', value: '1' }), env, ctx);
+    expect(r2.status).toBe(403);
+    const r3 = await worker.fetch(authPost('/api/admin/settings', { key: 'hacker_key', value: 'x' }), env, ctx);
+    expect(r3.status).toBe(400);
+  });
+
+  it('onboarding_done 由必填鍵 derived 重算', async () => {
+    await worker.fetch(authPost('/api/admin/settings', { key: 'site_domain', value: 'm.example.com' }), env, ctx);
+    await worker.fetch(authPost('/api/admin/settings', { key: 'landing_title', value: '訂閱我' }), env, ctx);
+    await worker.fetch(authPost('/api/admin/settings', { key: 'tosend_from_email', value: 'me@example.com' }), env, ctx);
+    await worker.fetch(authPost('/api/admin/settings', { key: 'tosend_from_name', value: '老魚' }), env, ctx);
+    // 還缺 tosend_api_key → 0
+    let g = await (await worker.fetch(authGet('/api/admin/settings'), env, ctx)).json() as any;
+    expect(g.onboarding_done).toBe(false);
+    await worker.fetch(authPost('/api/admin/settings', { key: 'tosend_api_key', value: 'sk-x' }), env, ctx);
+    g = await (await worker.fetch(authGet('/api/admin/settings'), env, ctx)).json() as any;
+    expect(g.onboarding_done).toBe(true);
+  });
+
+  it('Gherkin 8：設定未完成時寄信 API 回 400', async () => {
+    const res = await worker.fetch(authPost('/api/admin/send-direct', {
+      email: 'x@example.com', subject: 's', content: 'c',
+    }), env, ctx);
+    expect(res.status).toBe(400);
+    expect((await res.json() as any).error).toBe('請先完成設定頁');
   });
 });

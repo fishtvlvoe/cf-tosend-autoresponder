@@ -57,7 +57,14 @@ export const adminConsoleHtml = `<!DOCTYPE html>
         <button onclick="switchTab('automations')" id="tab-btn-automations" class="tab-inactive py-3 px-1 border-b-2 text-sm transition">
           4. 自動跟進排程 (Automations)
         </button>
+        <button onclick="switchTab('settings')" id="tab-btn-settings" class="tab-inactive py-3 px-1 border-b-2 text-sm transition">
+          5. 設定 (Settings)
+        </button>
       </nav>
+      <!-- 設定未完成提示橫幅（derived onboarding_done=0 時顯示，點擊切到設定頁籤） -->
+      <div id="onboarding-banner" class="hidden mb-4 bg-amber-50 border border-amber-200 text-amber-800 text-xs px-4 py-2.5 rounded-lg cursor-pointer" onclick="switchTab('settings')">
+        ⚠ 請先完成初始設定（網域、寄件人、ToSend 金鑰），完成前無法寄信。
+      </div>
       <div id="tab-quick-action">
         <button onclick="switchTab('campaigns')" class="text-xs bg-stone-900 hover:bg-stone-800 text-white font-medium px-3 py-1.5 rounded transition">
           + 撰寫新廣播信
@@ -409,6 +416,68 @@ export const adminConsoleHtml = `<!DOCTYPE html>
         </div>
       </div>
     </section>
+
+    <!-- 頁籤 5：設定 (Settings) — 單頁欄位即驗，存檔即生效 -->
+    <section id="tab-settings" class="hidden space-y-6 max-w-2xl">
+      <div class="bg-white p-6 rounded-xl border border-stone-200 shadow-xs space-y-5">
+        <h3 class="text-sm font-bold text-stone-900">基本設定</h3>
+        <div>
+          <label class="block text-xs font-semibold text-stone-700 mb-1">網域名稱 <span class="text-rose-500">*</span></label>
+          <input type="text" id="set-site_domain" placeholder="例如：mail.yourdomain.com" class="w-full px-3 py-2 border border-stone-300 rounded text-sm focus:outline-none focus:border-stone-900" />
+          <p class="text-[11px] text-stone-400 mt-1">產生退訂連結與著陸頁網址所用。使用自有網域請先在 ToSend 驗證。</p>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-stone-700 mb-1">著陸頁主標題 <span class="text-rose-500">*</span></label>
+          <input type="text" id="set-landing_title" placeholder="例如：訂閱我的電子報" class="w-full px-3 py-2 border border-stone-300 rounded text-sm focus:outline-none focus:border-stone-900" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-stone-700 mb-1">著陸頁副文案</label>
+          <textarea id="set-landing_intro" rows="3" placeholder="一句話介紹你的電子報..." class="w-full px-3 py-2 border border-stone-300 rounded text-sm focus:outline-none focus:border-stone-900"></textarea>
+        </div>
+        <button onclick="saveSettings(['site_domain','landing_title','landing_intro'])" class="text-xs bg-stone-900 hover:bg-stone-800 text-white font-medium px-4 py-1.5 rounded transition">儲存基本設定</button>
+      </div>
+
+      <div class="bg-white p-6 rounded-xl border border-stone-200 shadow-xs space-y-5">
+        <h3 class="text-sm font-bold text-stone-900">寄信設定</h3>
+        <div>
+          <label class="block text-xs font-semibold text-stone-700 mb-1">寄件人名稱 <span class="text-rose-500">*</span></label>
+          <input type="text" id="set-tosend_from_name" placeholder="例如：老魚" class="w-full px-3 py-2 border border-stone-300 rounded text-sm focus:outline-none focus:border-stone-900" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-stone-700 mb-1">寄件人信箱 <span class="text-rose-500">*</span></label>
+          <input type="email" id="set-tosend_from_email" placeholder="例如：me@yourdomain.com" class="w-full px-3 py-2 border border-stone-300 rounded text-sm focus:outline-none focus:border-stone-900" />
+          <p class="text-[11px] text-stone-400 mt-1">必須是在 ToSend 完成網域驗證的信箱。</p>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-stone-700 mb-1">ToSend API Key <span class="text-rose-500">*</span></label>
+          <div class="flex gap-2">
+            <input type="password" id="set-tosend_api_key" placeholder="ts_live_..." class="flex-1 px-3 py-2 border border-stone-300 rounded text-sm focus:outline-none focus:border-stone-900" />
+            <button onclick="clearTosendKey()" id="btn-clear-key" class="hidden text-xs px-3 py-2 rounded border border-stone-300 text-stone-500 hover:bg-stone-50 transition">清除重設</button>
+          </div>
+          <p id="key-status" class="text-[11px] mt-1 hidden"></p>
+          <p class="text-[11px] text-stone-400 mt-1">金鑰以 AES-256 加密存放；按下「驗證並儲存」會先寄測試信到上方信箱，成功才寫入。</p>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="saveSettings(['tosend_from_name','tosend_from_email'])" class="text-xs bg-stone-900 hover:bg-stone-800 text-white font-medium px-4 py-1.5 rounded transition">儲存寄件人</button>
+          <button onclick="verifyAndSaveTosend()" id="btn-verify-tosend" class="text-xs bg-emerald-700 hover:bg-emerald-800 text-white font-medium px-4 py-1.5 rounded transition">驗證並儲存金鑰</button>
+        </div>
+        <p id="settings-msg" class="text-xs hidden"></p>
+      </div>
+
+      <div class="bg-white p-6 rounded-xl border border-stone-200 shadow-xs space-y-4">
+        <h3 class="text-sm font-bold text-stone-900">安全</h3>
+        <div>
+          <label class="block text-xs font-semibold text-stone-700 mb-1">目前密碼</label>
+          <input type="password" id="set-old-password" class="w-full px-3 py-2 border border-stone-300 rounded text-sm focus:outline-none focus:border-stone-900" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-stone-700 mb-1">新密碼（至少 8 字）</label>
+          <input type="password" id="set-new-password" class="w-full px-3 py-2 border border-stone-300 rounded text-sm focus:outline-none focus:border-stone-900" />
+        </div>
+        <button onclick="changePassword()" class="text-xs bg-stone-900 hover:bg-stone-800 text-white font-medium px-4 py-1.5 rounded transition">修改密碼</button>
+        <p class="text-[11px] text-stone-400">修改後所有已登入裝置會被登出。</p>
+      </div>
+    </section>
   </main>
 
   <!-- 個別發信 Modal 視窗 -->
@@ -460,7 +529,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
 
     // 頁籤切換（解決 Tailwind hidden 與 display 衝擊問題）
     function switchTab(t) {
-      const tabs = ['dashboard', 'contacts', 'campaigns', 'automations'];
+      const tabs = ['dashboard', 'contacts', 'campaigns', 'automations', 'settings'];
       tabs.forEach(tabName => {
         const section = document.getElementById('tab-' + tabName);
         const btn = document.getElementById('tab-btn-' + tabName);
@@ -475,6 +544,135 @@ export const adminConsoleHtml = `<!DOCTYPE html>
       if (t === 'dashboard') loadDashboardStats();
       if (t === 'contacts') loadContactsData();
       if (t === 'automations') loadAutomationsData();
+      if (t === 'settings') loadSettingsData();
+    }
+
+
+    // 5. 設定頁 API 串接
+    const SETTING_KEYS = ['site_domain','landing_title','landing_intro','tosend_from_name','tosend_from_email','tosend_api_key'];
+
+    async function loadSettingsData() {
+      try {
+        const res = await apiFetch('/api/admin/settings');
+        if (!res.ok) return;
+        const data = await res.json();
+        for (const k of SETTING_KEYS) {
+          const el = document.getElementById('set-' + k);
+          if (!el) continue;
+          if (k === 'tosend_api_key') {
+            const set = data.settings[k] && data.settings[k].set;
+            document.getElementById('btn-clear-key').classList.toggle('hidden', !set);
+            const st = document.getElementById('key-status');
+            if (set) {
+              st.textContent = '✓ 金鑰已設定（加密存放，不回顯）';
+              st.className = 'text-[11px] mt-1 text-emerald-600';
+              st.classList.remove('hidden');
+            } else {
+              st.classList.add('hidden');
+            }
+            el.value = '';
+            el.placeholder = set ? '已設定，輸入新金鑰可覆蓋' : 'ts_live_...';
+          } else {
+            el.value = (data.settings[k] && data.settings[k].value) || '';
+          }
+        }
+        // onboarding 橫幅（derived）
+        document.getElementById('onboarding-banner').classList.toggle('hidden', data.onboarding_done === true);
+      } catch (err) {
+        console.error('[Settings] Failed:', err);
+      }
+    }
+
+    function showSettingsMsg(text, ok) {
+      const el = document.getElementById('settings-msg');
+      el.textContent = text;
+      el.className = 'text-xs ' + (ok ? 'text-emerald-600' : 'text-rose-600');
+      el.classList.remove('hidden');
+    }
+
+    async function saveSettings(keys) {
+      showSettingsMsg('儲存中...', true);
+      try {
+        for (const k of keys) {
+          const el = document.getElementById('set-' + k);
+          if (!el) continue;
+          const res = await apiFetch('/api/admin/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key: k, value: el.value.trim() }),
+          });
+          if (!res.ok) {
+            const d = await res.json().catch(() => ({}));
+            showSettingsMsg('儲存失敗：' + (d.error || k), false);
+            return;
+          }
+        }
+        showSettingsMsg('✓ 已儲存', true);
+        loadSettingsData();
+      } catch (err) {
+        showSettingsMsg('儲存失敗：無法連線', false);
+      }
+    }
+
+    // ToSend 金鑰兩步驟：先驗證（不落庫）→ 成功才寫入
+    async function verifyAndSaveTosend() {
+      const apiKey = document.getElementById('set-tosend_api_key').value.trim();
+      const fromEmail = document.getElementById('set-tosend_from_email').value.trim();
+      const fromName = document.getElementById('set-tosend_from_name').value.trim();
+      if (!apiKey) { showSettingsMsg('請先輸入 ToSend API Key', false); return; }
+      if (!fromEmail) { showSettingsMsg('請先填寫寄件人信箱', false); return; }
+      const btn = document.getElementById('btn-verify-tosend');
+      btn.disabled = true; btn.innerText = '驗證中...';
+      try {
+        const vres = await apiFetch('/api/admin/settings/verify-tosend', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ api_key: apiKey, from_email: fromEmail, from_name: fromName }),
+        });
+        const vd = await vres.json().catch(() => ({}));
+        if (!vres.ok) {
+          showSettingsMsg('驗證失敗：' + (vd.error || '未知原因') + (vd.detail ? '（' + vd.detail + '）' : ''), false);
+          return;
+        }
+        const sres = await apiFetch('/api/admin/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: 'tosend_api_key', value: apiKey }),
+        });
+        if (!sres.ok) {
+          const sd = await sres.json().catch(() => ({}));
+          showSettingsMsg('儲存失敗：' + (sd.error || '未知原因'), false);
+          return;
+        }
+        showSettingsMsg('✓ 測試信已寄出，金鑰已加密儲存', true);
+        loadSettingsData();
+      } finally {
+        btn.disabled = false; btn.innerText = '驗證並儲存金鑰';
+      }
+    }
+
+    // HAOJI_SECRET 重設後的一鍵清除重設
+    async function clearTosendKey() {
+      if (!confirm('確定要清除已儲存的 ToSend 金鑰嗎？之後需重新驗證。')) return;
+      const res = await apiFetch('/api/admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'tosend_api_key', value: '' }),
+      });
+      if (res.ok) { showSettingsMsg('✓ 已清除，請重新輸入並驗證', true); loadSettingsData(); }
+    }
+
+    async function changePassword() {
+      const oldP = document.getElementById('set-old-password').value;
+      const newP = document.getElementById('set-new-password').value;
+      const res = await apiFetch('/api/admin/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ old_password: oldP, new_password: newP }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (res.ok) { showSettingsMsg('✓ 密碼已更新，請重新登入', true); }
+      else { showSettingsMsg('修改失敗：' + (d.error || '未知原因'), false); }
     }
 
     // 1. 數據總覽 API 串接
