@@ -393,9 +393,76 @@ export function renderAdminConsole(): Response {
           <input type="text" id="input-subject" value="歡迎加入！這是你的第一份專屬精選指南" class="w-full px-3 py-2 border border-stone-300 rounded text-sm focus:outline-none focus:border-stone-900" />
         </div>
 
-        <div class="flex-1 flex flex-col">
-          <label class="text-xs font-semibold text-stone-700 mb-1">信件正文內容 (HTML 格式)</label>
-          <textarea id="input-content" rows="8" class="w-full p-3 border border-stone-300 rounded text-xs font-mono focus:outline-none focus:border-stone-900 leading-relaxed text-stone-800"><p>嗨 <strong>{{name}}</strong>，歡迎訂閱！</p></textarea>
+        <div class="flex-1 flex flex-col space-y-2">
+          <div class="flex items-center justify-between">
+            <label class="text-xs font-semibold text-stone-700">信件正文內容</label>
+            <div class="flex items-center gap-3">
+              <!-- 裝置寬度切換 (桌機 600px / 手機 375px) -->
+              <div id="device-toggle" class="flex items-center gap-1 bg-stone-100 p-0.5 rounded border border-stone-200 text-xs">
+                <button type="button" onclick="setDeviceWidth('desktop')" id="btn-device-desktop" class="px-2 py-0.5 rounded text-[11px] font-medium bg-white text-stone-900 shadow-2xs">桌機 (600px)</button>
+                <button type="button" onclick="setDeviceWidth('mobile')" id="btn-device-mobile" class="px-2 py-0.5 rounded text-[11px] font-medium text-stone-500 hover:text-stone-800">手機 (375px)</button>
+              </div>
+
+              <!-- 模式切換：視覺畫布 ⟷ HTML 原始碼 -->
+              <div class="flex items-center gap-1 bg-stone-100 p-0.5 rounded border border-stone-200 text-xs">
+                <button type="button" onclick="switchEditorMode('visual')" id="btn-mode-visual" class="px-2.5 py-0.5 rounded text-[11px] font-medium bg-white text-stone-900 shadow-2xs">視覺畫布</button>
+                <button type="button" onclick="switchEditorMode('html')" id="btn-mode-html" class="px-2.5 py-0.5 rounded text-[11px] font-medium text-stone-500 hover:text-stone-800">HTML 原始碼</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 視覺化工具列 (Visual Mode Toolbar) -->
+          <div id="editor-toolbar" class="flex flex-wrap items-center gap-1 p-2 bg-stone-50 border border-stone-200 rounded-t-lg text-xs">
+            <!-- 格式按鈕 -->
+            <button type="button" onclick="execCmd('bold')" title="粗體" class="w-7 h-7 flex items-center justify-center rounded hover:bg-stone-200 text-stone-700 font-bold">B</button>
+            <button type="button" onclick="execCmd('italic')" title="斜體" class="w-7 h-7 flex items-center justify-center rounded hover:bg-stone-200 text-stone-700 italic">I</button>
+            <button type="button" onclick="execCmd('underline')" title="底線" class="w-7 h-7 flex items-center justify-center rounded hover:bg-stone-200 text-stone-700 underline">U</button>
+            <span class="w-px h-4 bg-stone-300 mx-1"></span>
+
+            <!-- 標題與段落 -->
+            <button type="button" onclick="execFormatBlock('h2')" class="px-2 py-1 rounded hover:bg-stone-200 text-stone-700 font-bold text-[11px]">H2 標題</button>
+            <button type="button" onclick="execFormatBlock('h3')" class="px-2 py-1 rounded hover:bg-stone-200 text-stone-700 font-bold text-[11px]">H3 標題</button>
+            <button type="button" onclick="execFormatBlock('p')" class="px-2 py-1 rounded hover:bg-stone-200 text-stone-700 text-[11px]">一般段落</button>
+            <span class="w-px h-4 bg-stone-300 mx-1"></span>
+
+            <!-- 清單與分隔線 -->
+            <button type="button" onclick="execCmd('insertUnorderedList')" class="px-2 py-1 rounded hover:bg-stone-200 text-stone-700 text-[11px]">項目清單</button>
+            <button type="button" onclick="execCmd('insertHorizontalRule')" class="px-2 py-1 rounded hover:bg-stone-200 text-stone-700 text-[11px]">分隔線</button>
+            <span class="w-px h-4 bg-stone-300 mx-1"></span>
+
+            <!-- 插入自訂行動呼籲按鈕 (Call to Action Button) -->
+            <button type="button" onclick="insertCtaButton()" class="px-2.5 py-1 rounded bg-stone-900 hover:bg-stone-800 text-white font-medium text-[11px] transition">
+              + 插入行動按鈕
+            </button>
+
+            <!-- 插入動態變數下拉選單 -->
+            <div class="relative inline-block ml-auto">
+              <select onchange="insertVariable(this.value); this.selectedIndex=0;" class="text-[11px] font-medium bg-white border border-stone-300 text-stone-700 px-2 py-1 rounded focus:outline-none focus:border-stone-900">
+                <option value="">+ 插入動態變數</option>
+                <option value="{{name}}">{{name}} 訂閱者姓名</option>
+                <option value="{{email}}">{{email}} 電子信箱</option>
+                <option value="{{unsubscribeUrl}}">{{unsubscribeUrl}} 退訂網址</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- 編輯畫布容器 (支援 600px / 375px 郵件置中容器) -->
+          <div class="bg-stone-100 p-4 rounded-b-lg border-x border-b border-stone-200 flex justify-center min-h-[380px]">
+            <!-- 視覺編輯器 (可直接打字所見即所得) -->
+            <div id="visual-canvas-wrapper" class="w-full max-w-[600px] transition-all duration-200">
+              <div 
+                id="visual-editor" 
+                contenteditable="true" 
+                class="bg-white p-6 rounded-lg shadow-xs border border-stone-200 min-h-[340px] focus:outline-none text-sm text-stone-800 leading-relaxed space-y-3"
+              ></div>
+            </div>
+
+            <!-- HTML 原始碼編輯器 (切換時顯示) -->
+            <textarea 
+              id="html-editor" 
+              class="hidden w-full p-4 bg-stone-900 text-stone-100 font-mono text-xs rounded-lg focus:outline-none leading-relaxed resize-y min-h-[340px]"
+            ></textarea>
+          </div>
         </div>
       </section>
     </div>
@@ -430,6 +497,197 @@ export function renderAdminConsole(): Response {
   </main>
 
   <script>
+    let currentMode = 'visual'; // 'visual' | 'html'
+    let currentDevice = 'desktop'; // 'desktop' | 'mobile'
+    let activeStepNum = 1;
+
+    const sequencesCache = {
+      1: {
+        title: "編輯步驟 01：歡迎信件",
+        delay: 0,
+        active: "1",
+        subject: "歡迎加入！這是你的第一份專屬精選指南",
+        content: "<p>嗨 <strong>{{name}}</strong>，</p><p>非常感謝你的訂閱！這是你在註冊後立即收到的第一份歡迎信。</p><p>在接下來的幾天裡，我會與你分享最實用的自動化技巧與精選案例。</p><p style=\"text-align: center; margin: 24px 0;\"><a href=\"https://example.com/start\" style=\"background-color: #1c1917; color: #ffffff; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600; display: inline-block;\">立即開始閱讀指南</a></p><p>祝順心！</p>"
+      },
+      2: {
+        title: "編輯步驟 02：第 2 天跟進信",
+        delay: 24,
+        active: "1",
+        subject: "第 2 天跟進：核心觀念與最常見誤區",
+        content: "<p>嗨 <strong>{{name}}</strong>，</p><p>距離你訂閱已經過了 24 小時。今天想跟你聊聊在進行郵件自動化時，最常見的 3 個盲點...</p><p style=\"text-align: center; margin: 24px 0;\"><a href=\"https://example.com/case\" style=\"background-color: #1c1917; color: #ffffff; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600; display: inline-block;\">觀看案例解析</a></p><p>希望對你有幫助！</p>"
+      },
+      3: {
+        title: "編輯步驟 03：第 4 天深度解析",
+        delay: 72,
+        active: "1",
+        subject: "第 4 天深度解析：實戰案例分享",
+        content: "<p>嗨 <strong>{{name}}</strong>，</p><p>這是我們為你準備的深度實戰案例解析。透過這套流程，團隊省下了超過 80% 的手動溝通時間...</p><p>有任何問題隨時回覆這封信與我討論！</p>"
+      }
+    };
+
+    function initEditor() {
+      const visualEl = document.getElementById('visual-editor');
+      const htmlEl = document.getElementById('html-editor');
+      const initialHtml = sequencesCache[1].content;
+      visualEl.innerHTML = initialHtml;
+      htmlEl.value = initialHtml;
+
+      visualEl.addEventListener('input', () => {
+        htmlEl.value = visualEl.innerHTML;
+      });
+      htmlEl.addEventListener('input', () => {
+        visualEl.innerHTML = htmlEl.value;
+      });
+    }
+
+    function switchEditorMode(mode) {
+      currentMode = mode;
+      const visualWrapper = document.getElementById('visual-canvas-wrapper');
+      const visualEl = document.getElementById('visual-editor');
+      const htmlEl = document.getElementById('html-editor');
+      const toolbar = document.getElementById('editor-toolbar');
+      const btnVisual = document.getElementById('btn-mode-visual');
+      const btnHtml = document.getElementById('btn-mode-html');
+      const deviceToggle = document.getElementById('device-toggle');
+
+      if (mode === 'visual') {
+        visualEl.innerHTML = htmlEl.value;
+        visualWrapper.classList.remove('hidden');
+        htmlEl.classList.add('hidden');
+        toolbar.classList.remove('hidden');
+        deviceToggle.classList.remove('hidden');
+        btnVisual.className = 'px-2.5 py-0.5 rounded text-[11px] font-medium bg-white text-stone-900 shadow-2xs';
+        btnHtml.className = 'px-2.5 py-0.5 rounded text-[11px] font-medium text-stone-500 hover:text-stone-800';
+      } else {
+        htmlEl.value = visualEl.innerHTML;
+        visualWrapper.classList.add('hidden');
+        htmlEl.classList.remove('hidden');
+        toolbar.classList.add('hidden');
+        deviceToggle.classList.add('hidden');
+        btnHtml.className = 'px-2.5 py-0.5 rounded text-[11px] font-medium bg-white text-stone-900 shadow-2xs';
+        btnVisual.className = 'px-2.5 py-0.5 rounded text-[11px] font-medium text-stone-500 hover:text-stone-800';
+      }
+    }
+
+    function setDeviceWidth(device) {
+      currentDevice = device;
+      const wrapper = document.getElementById('visual-canvas-wrapper');
+      const btnDesk = document.getElementById('btn-device-desktop');
+      const btnMob = document.getElementById('btn-device-mobile');
+
+      if (device === 'desktop') {
+        wrapper.style.maxWidth = '600px';
+        btnDesk.className = 'px-2 py-0.5 rounded text-[11px] font-medium bg-white text-stone-900 shadow-2xs';
+        btnMob.className = 'px-2 py-0.5 rounded text-[11px] font-medium text-stone-500 hover:text-stone-800';
+      } else {
+        wrapper.style.maxWidth = '375px';
+        btnMob.className = 'px-2 py-0.5 rounded text-[11px] font-medium bg-white text-stone-900 shadow-2xs';
+        btnDesk.className = 'px-2 py-0.5 rounded text-[11px] font-medium text-stone-500 hover:text-stone-800';
+      }
+    }
+
+    function execCmd(command, val = null) {
+      document.execCommand(command, false, val);
+      const visualEl = document.getElementById('visual-editor');
+      document.getElementById('html-editor').value = visualEl.innerHTML;
+    }
+
+    function execFormatBlock(tag) {
+      document.execCommand('formatBlock', false, tag);
+      const visualEl = document.getElementById('visual-editor');
+      document.getElementById('html-editor').value = visualEl.innerHTML;
+    }
+
+    function insertVariable(v) {
+      if (!v) return;
+      if (currentMode === 'visual') {
+        document.execCommand('insertHTML', false, \`<span style="background-color: #f5f5f4; border: 1px solid #e7e5e4; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 12px; color: #44403c;">\${v}</span>&nbsp;\`);
+        document.getElementById('html-editor').value = document.getElementById('visual-editor').innerHTML;
+      } else {
+        const textarea = document.getElementById('html-editor');
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        textarea.value = textarea.value.substring(0, start) + v + textarea.value.substring(end);
+        document.getElementById('visual-editor').innerHTML = textarea.value;
+      }
+    }
+
+    function insertCtaButton() {
+      const text = prompt("請輸入按鈕文字：", "點擊前往查看");
+      if (!text) return;
+      const url = prompt("請輸入按鈕連結網址：", "https://");
+      if (!url) return;
+
+      const btnHtml = \`<div style="text-align: center; margin: 24px 0;"><a href="\${url}" target="_blank" style="background-color: #1c1917; color: #ffffff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600; display: inline-block;">\${text}</a></div><p></p>\`;
+      
+      if (currentMode === 'visual') {
+        document.execCommand('insertHTML', false, btnHtml);
+        document.getElementById('html-editor').value = document.getElementById('visual-editor').innerHTML;
+      } else {
+        const textarea = document.getElementById('html-editor');
+        textarea.value += btnHtml;
+        document.getElementById('visual-editor').innerHTML = textarea.value;
+      }
+    }
+
+    function selectStep(stepNum) {
+      activeStepNum = stepNum;
+      [1, 2, 3].forEach(s => {
+        const item = document.getElementById('step-item-' + s);
+        if (s === stepNum) {
+          item.className = 'p-3.5 rounded-lg border border-stone-900 bg-white shadow-xs cursor-pointer transition';
+        } else {
+          item.className = 'p-3.5 rounded-lg border border-stone-200 bg-stone-50 hover:bg-white cursor-pointer transition';
+        }
+      });
+
+      const data = sequencesCache[stepNum];
+      if (data) {
+        document.getElementById('editor-title').innerText = data.title;
+        document.getElementById('input-delay').value = data.delay;
+        document.getElementById('select-active').value = data.active;
+        document.getElementById('input-subject').value = data.subject;
+        document.getElementById('visual-editor').innerHTML = data.content;
+        document.getElementById('html-editor').value = data.content;
+      }
+    }
+
+    function saveSequenceStep() {
+      const visualEl = document.getElementById('visual-editor');
+      const htmlContent = (currentMode === 'visual') ? visualEl.innerHTML : document.getElementById('html-editor').value;
+      const delay = parseInt(document.getElementById('input-delay').value, 10);
+      const subject = document.getElementById('input-subject').value;
+      const isActive = parseInt(document.getElementById('select-active').value, 10);
+
+      sequencesCache[activeStepNum] = {
+        title: document.getElementById('editor-title').innerText,
+        delay,
+        active: isActive.toString(),
+        subject,
+        content: htmlContent
+      };
+
+      fetch('/api/admin/sequences', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          step_number: activeStepNum,
+          delay_hours: delay,
+          subject,
+          content_html: htmlContent,
+          is_active: isActive
+        })
+      })
+      .then(r => r.json())
+      .then(d => alert("步驟 " + activeStepNum + " 變更已成功寫入 D1 資料庫！"))
+      .catch(() => alert("儲存至資料庫失敗"));
+    }
+
+    function sendTestEmail() {
+      const email = prompt("請輸入接收測試信的電子信箱：");
+      if (email) alert("測試信已送出至 " + email);
+    }
+
     function switchTab(t) {
       ['dashboard', 'sequences', 'subscribers'].forEach(tab => {
         const el = document.getElementById('tab-' + tab);
@@ -463,20 +721,21 @@ export function renderAdminConsole(): Response {
           if (logs.length === 0) {
             tbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-stone-400">目前尚無投遞日誌</td></tr>';
           } else {
-            tbody.innerHTML = logs.map(l => \`
-              <tr>
-                <td class="py-2.5">\${l.subscriber_email || '--'}</td>
-                <td class="py-2.5">Step \${l.step_number || l.sequence_id}</td>
-                <td class="py-2.5">\${l.sequence_subject || '--'}</td>
-                <td class="py-2.5"><span class="px-2 py-0.5 rounded text-[10px] \${l.status === 'sent' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}">\${l.status}</span></td>
-                <td class="py-2.5 text-right text-stone-400">\${l.sent_at || '--'}</td>
-              </tr>
-            \`).join('');
+            tbody.innerHTML = logs.map(l =>
+              '<tr>' +
+                '<td class="py-2.5">' + (l.subscriber_email || '--') + '</td>' +
+                '<td class="py-2.5">Step ' + (l.step_number || l.sequence_id) + '</td>' +
+                '<td class="py-2.5">' + (l.sequence_subject || '--') + '</td>' +
+                '<td class="py-2.5"><span class="px-2 py-0.5 rounded text-[10px] ' + (l.status === 'sent' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200') + '">' + l.status + '</span></td>' +
+                '<td class="py-2.5 text-right text-stone-400">' + (l.sent_at || '--') + '</td>' +
+              '</tr>'
+            ).join('');
           }
         }
       } catch(e) {}
     }
 
+    initEditor();
     loadData();
 
     function triggerCronExecution() {
@@ -487,15 +746,6 @@ export function renderAdminConsole(): Response {
           loadData();
         })
         .catch(() => alert("觸發失敗"));
-    }
-
-    function sendTestEmail() {
-      const email = prompt("請輸入接收測試信的電子信箱：");
-      if (email) alert("測試信已送出至 " + email);
-    }
-
-    function saveSequenceStep() {
-      alert("變更已成功儲存至 D1 資料庫。");
     }
 
     function createNewStep() {
