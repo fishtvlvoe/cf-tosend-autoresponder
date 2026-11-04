@@ -7,7 +7,7 @@
     {
       "binding": "DB",
       "database_name": "autoresponder_db",
-      "database_id": "YOUR_D1_DATABASE_ID"
+      "database_id": "04b89bbf-3f65-4aef-aed2-4452879cc379"
     }
   ],
   "triggers": {
