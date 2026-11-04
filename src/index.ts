@@ -5,6 +5,7 @@ import { sendWelcomeEmailIfConfigured, runDripScheduler } from './drip';
 import { sendEmailViaToSend } from './tosend';
 import { hashPassword, verifyPassword, newSessionToken, encryptSecret, decryptSecret } from './crypto';
 import { decodeCsvText, parseCsv, buildCsv } from './csv';
+import { loadMailerConfig, MailingConfigError } from './mailer';
 
 const SESSION_MAX_AGE_SEC = 7 * 24 * 3600; // 滑動 7 天
 const SETUP_LOCK_MS = 10 * 60 * 1000; // setup-password 鎖定 10 分鐘
@@ -495,13 +496,26 @@ export default {
           return Response.json({ error: '請提供收件者 Email、主旨與內容' }, { status: 400 });
         }
 
+        let config;
+        try {
+          config = await loadMailerConfig(dbService, env);
+        } catch (err) {
+          const msg = err instanceof MailingConfigError ? err.message : '寄信組態錯誤';
+          return Response.json({ error: msg }, { status: 400 });
+        }
+
         const subRes = await dbService.upsertSubscriber(body.email, body.name);
-        const sendResult = await sendEmailViaToSend(env, {
-          toEmail: body.email,
-          toName: body.name,
-          subject: body.subject,
-          html: body.content,
-          unsubscribeUrl: `${env.APP_URL || ''}/unsubscribe?token=${subRes.subscriber.unsubscribe_token}`,
+        const unsub = `https://${config.siteDomain.replace(/^https?:\/\//, '').replace(/\/+$/, '')}/unsubscribe?token=${encodeURIComponent(subRes.subscriber.unsubscribe_token)}`;
+        const sendResult = await sendEmailViaToSend({
+          ...config,
+          baseUrl: env.TOSEND_API_BASE_URL,
+          payload: {
+            toEmail: body.email,
+            toName: body.name,
+            subject: body.subject,
+            html: body.content,
+            unsubscribeUrl: unsub,
+          },
         });
 
         await dbService.recordDirectSendLog({
@@ -543,22 +557,56 @@ export default {
           recipients = await dbService.getActiveSubscribersByTag('all');
         }
 
+        // 單批上限 500（Worker wall-clock 上限，§7.3）
+        if (recipients.length > 500) {
+          return Response.json({ error: '單批上限 500 人，請依標籤分批' }, { status: 400 });
+        }
+
+        let config;
+        try {
+          config = await loadMailerConfig(dbService, env);
+        } catch (err) {
+          const msg = err instanceof MailingConfigError ? err.message : '寄信組態錯誤';
+          return Response.json({ error: msg }, { status: 400 });
+        }
+        const siteBase = `https://${config.siteDomain.replace(/^https?:\/\//, '').replace(/\/+$/, '')}`;
+
         let sentSuccess = 0;
         let sentFailed = 0;
 
         for (const sub of recipients) {
+          const unsub = `${siteBase}/unsubscribe?token=${encodeURIComponent(sub.unsubscribe_token)}`;
           const personalHtml = body.content_html
             .replace(/\{\{name\}\}/g, sub.name || '')
             .replace(/\{\{email\}\}/g, sub.email)
-            .replace(/\{\{unsubscribeUrl\}\}/g, `${env.APP_URL || ''}/unsubscribe?token=${sub.unsubscribe_token}`);
+            .replace(/\{\{unsubscribeUrl\}\}/g, unsub);
 
-          const result = await sendEmailViaToSend(env, {
-            toEmail: sub.email,
-            toName: sub.name,
-            subject: body.subject,
-            html: personalHtml,
-            unsubscribeUrl: `${env.APP_URL || ''}/unsubscribe?token=${sub.unsubscribe_token}`,
+          let result = await sendEmailViaToSend({
+            ...config,
+            baseUrl: env.TOSEND_API_BASE_URL,
+            payload: {
+              toEmail: sub.email,
+              toName: sub.name,
+              subject: body.subject,
+              html: personalHtml,
+              unsubscribeUrl: unsub,
+            },
           });
+
+          // 429 退避：優先 Retry-After，否則立即重試，最多 3 次（§7.3）
+          let attempts = 0;
+          while (!result.ok && result.statusCode === 429 && attempts < 3) {
+            attempts++;
+            const waitMs = Math.min(Number(result.retryAfter || 0), 30) * 1000;
+            if (waitMs > 0) {
+              await fetch('https://example.com', { signal: AbortSignal.timeout(waitMs) }).catch(() => {});
+            }
+            result = await sendEmailViaToSend({
+              ...config,
+              baseUrl: env.TOSEND_API_BASE_URL,
+              payload: { toEmail: sub.email, toName: sub.name, subject: body.subject, html: personalHtml, unsubscribeUrl: unsub },
+            });
+          }
 
           await dbService.recordDirectSendLog({
             subscriberId: sub.id,
@@ -571,7 +619,7 @@ export default {
           else sentFailed++;
         }
 
-        await dbService.saveCampaign({
+        const campaignId = await dbService.saveCampaign({
           name: body.name || body.subject,
           subject: body.subject,
           content_html: body.content_html,
@@ -579,6 +627,10 @@ export default {
           target_tag: body.target_tag || '',
           sent_count: sentSuccess,
         });
+        await dbService.updateCampaignStatus(
+          campaignId,
+          sentFailed === 0 ? 'done' : sentSuccess > 0 ? 'partial' : 'failed'
+        );
 
         return Response.json({
           success: true,

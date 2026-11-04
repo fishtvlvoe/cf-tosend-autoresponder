@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS campaigns (
     target_type TEXT DEFAULT 'all', -- all, tag, manual
     target_tag TEXT DEFAULT '',
     sent_count INTEGER DEFAULT 0,
+    status TEXT DEFAULT 'done', -- done / partial / failed
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

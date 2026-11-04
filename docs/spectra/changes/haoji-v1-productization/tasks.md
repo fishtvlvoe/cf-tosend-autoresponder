@@ -48,12 +48,12 @@
 
 - [ ] 4.0 需求覆蓋：本 Phase 對應 Requirement「寄信可靠性」與「標籤分眾」（spec.md，驗收情境見其 Scenario）
 
-- [ ] 4.1 tosend.ts 改顯式參數（不再讀 env）+ List-Unsubscribe / List-Unsubscribe-Post 信頭（RFC 8058）
-- [ ] 4.2 target_tag 篩選（空=全部 active；bounced/unsubscribed/deleted 排除）+ 預覽 N 人
-- [ ] 4.3 群發單批上限 500（超出 400）+ 429 退避（Retry-After 優先）+ campaigns.status（done/partial/failed）+ 逐人失敗不中斷
-- [ ] 4.4 /api/webhook/tosend 退信標記 bounced（bounced 排除於所有寄信）
-- [ ] 4.5 drip.ts：寄前原子 UPDATE 冪等、sending 10 分鐘 staleness 回收、寄前複查 status
-- [ ] 4.6 Gherkin 3、5、7、10 驗證
+- [x] 4.1 tosend.ts 改顯式參數（不再讀 env）+ List-Unsubscribe / List-Unsubscribe-Post 信頭（RFC 8058）
+- [x] 4.2 target_tag 篩選（空=全部 active；bounced/unsubscribed/deleted 排除）+ 預覽 N 人
+- [x] 4.3 群發單批上限 500（超出 400）+ 429 退避（Retry-After 優先）+ campaigns.status（done/partial/failed）+ 逐人失敗不中斷
+- [x] 4.4 /api/webhook/tosend 退信標記 bounced（bounced 排除於所有寄信）
+- [x] 4.5 drip.ts：寄前原子 UPDATE 冪等、sending 10 分鐘 staleness 回收、寄前複查 status
+- [x] 4.6 Gherkin 3、5、7、10 驗證
 
 ## Phase 5：部署與文件（Requirement: 買斷制部署）
 

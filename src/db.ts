@@ -112,25 +112,45 @@ export class DatabaseService {
   }
 
   /**
-   * 記錄發信狀態並更新訂閱者的 current_step
+   * 記錄發信狀態並以「條件式 UPDATE」原子推進 current_step（冪等，§7.5）。
+   * 回傳 true 代表本呼叫完成推進；false 代表他處已處理（重疊執行防線）。
    */
   async recordSentAndAdvanceStep(
     subscriberId: number,
     sequenceId: number,
     nextStepNumber: number,
     messageId?: string
-  ): Promise<void> {
-    await this.db.batch([
-      this.db
-        .prepare(`
-          INSERT INTO delivery_logs (subscriber_id, sequence_id, tosend_message_id, status)
-          VALUES (?, ?, ?, 'sent')
-        `)
-        .bind(subscriberId, sequenceId, messageId || null),
-      this.db
-        .prepare("UPDATE subscribers SET current_step = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
-        .bind(nextStepNumber, subscriberId),
-    ]);
+  ): Promise<boolean> {
+    const advance = await this.db
+      .prepare("UPDATE subscribers SET current_step = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND current_step = ?")
+      .bind(nextStepNumber, subscriberId, nextStepNumber - 1)
+      .run();
+    if ((advance.meta.changes ?? 0) === 0) return false;
+    await this.db
+      .prepare(`
+        INSERT INTO delivery_logs (subscriber_id, sequence_id, tosend_message_id, status)
+        VALUES (?, ?, ?, 'sent')
+      `)
+      .bind(subscriberId, sequenceId, messageId || null)
+      .run();
+    return true;
+  }
+
+  /** 冪等檢查：該訂閱者是否已有此 sequence 的投遞紀錄 */
+  async hasDeliveryLogFor(subscriberId: number, sequenceId: number): Promise<boolean> {
+    const row = await this.db
+      .prepare("SELECT 1 as x FROM delivery_logs WHERE subscriber_id = ? AND sequence_id = ? LIMIT 1")
+      .bind(subscriberId, sequenceId)
+      .first();
+    return !!row;
+  }
+
+  /** 更新 campaigns 狀態（done / partial / failed） */
+  async updateCampaignStatus(campaignId: number, status: 'done' | 'partial' | 'failed'): Promise<void> {
+    await this.db
+      .prepare("UPDATE campaigns SET status = ? WHERE id = ?")
+      .bind(status, campaignId)
+      .run();
   }
 
   /**

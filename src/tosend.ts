@@ -1,4 +1,4 @@
-import { Env, SendEmailPayload } from './types';
+import { SendEmailPayload } from './types';
 
 const DEFAULT_TOSEND_BASE_URL = 'https://api.tosend.com/v2';
 
@@ -7,24 +7,28 @@ export interface ToSendResult {
   messageId?: string;
   error?: string;
   statusCode?: number;
+  retryAfter?: string;
 }
 
 /**
  * 透過 ToSend REST API 寄送電子郵件
- * 參考自 workspace 中 ai-newsletter-notifier 與 bni-ai-saas 的穩定實作
+ * （顯式參數版：不再讀 env；呼叫端以 loadMailerConfig 注入，規格書 §6）
  */
-export async function sendEmailViaToSend(
-  env: Env,
-  payload: SendEmailPayload
-): Promise<ToSendResult> {
-  const apiKey = env.TOSEND_API_KEY;
-  if (!apiKey) {
-    return { ok: false, error: 'TOSEND_API_KEY is not configured in Worker secrets' };
+export async function sendEmailViaToSend(params: {
+  apiKey: string;
+  fromEmail: string;
+  fromName: string;
+  baseUrl?: string;
+  payload: SendEmailPayload;
+}): Promise<ToSendResult> {
+  const { payload } = params;
+  if (!params.apiKey) {
+    return { ok: false, error: 'ToSend API Key 未提供' };
   }
 
-  const baseUrl = (env.TOSEND_API_BASE_URL || DEFAULT_TOSEND_BASE_URL).replace(/\/+$/, '');
-  const fromEmail = env.TOSEND_FROM_EMAIL || 'noreply@tosend.com';
-  const fromName = env.TOSEND_FROM_NAME || 'Autoresponder';
+  const baseUrl = (params.baseUrl || DEFAULT_TOSEND_BASE_URL).replace(/\/+$/, '');
+  const fromEmail = params.fromEmail;
+  const fromName = params.fromName;
 
   // 加上 RFC List-Unsubscribe 相關標記與信末退訂區塊
   let finalHtml = payload.html;
@@ -62,7 +66,7 @@ export async function sendEmailViaToSend(
   }
 
   const headers: Record<string, string> = {
-    Authorization: `Bearer ${apiKey}`,
+    Authorization: `Bearer ${params.apiKey}`,
     'Content-Type': 'application/json',
   };
 
@@ -93,6 +97,7 @@ export async function sendEmailViaToSend(
       return {
         ok: false,
         statusCode: response.status,
+        retryAfter: response.headers.get('Retry-After') || undefined,
         error: errMsg,
       };
     }

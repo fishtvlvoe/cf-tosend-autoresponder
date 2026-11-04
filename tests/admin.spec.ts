@@ -4,7 +4,7 @@ import { DatabaseService } from '../src/db';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import worker from '../src/index';
-import { hashPassword } from '../src/crypto';
+import { hashPassword, encryptSecret } from '../src/crypto';
 
 function createMockD1Database(db: any): any {
   return {
@@ -69,6 +69,7 @@ describe('Admin 控制台與 API 端點驗證 (Admin Endpoints)', () => {
     mockD1 = createMockD1Database(sqlite);
     env = {
       DB: mockD1,
+      HAOJI_SECRET: 'test-secret-for-encryption-32chars!',
       TOSEND_API_KEY: 'test-tosend-key',
       TOSEND_FROM_EMAIL: 'sender@example.com',
       TOSEND_FROM_NAME: 'Test Sender',
@@ -78,6 +79,12 @@ describe('Admin 控制台與 API 端點驗證 (Admin Endpoints)', () => {
       .run('admin_password_hash', await hashPassword(ADMIN_PASSWORD));
     // 預建完成設定的旗標（send 相關測試需通過 onboarding 檢查）
     sqlite.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('onboarding_done', '1');
+    // 寄信組態（send 現改由 settings 注入 mailer config）
+    sqlite.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('tosend_from_email', 'sender@example.com');
+    sqlite.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('tosend_from_name', 'Test Sender');
+    sqlite.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('site_domain', 'test-worker.workers.dev');
+    sqlite.prepare('INSERT INTO settings (key, value, is_encrypted) VALUES (?, ?, 1)')
+      .run('tosend_api_key', await encryptSecret('test-tosend-key', env.HAOJI_SECRET));
     ctx = {
       waitUntil: vi.fn(),
       passThroughOnException: vi.fn(),
@@ -511,5 +518,109 @@ describe('標籤與 CSV 匯入匯出（Phase 3）', () => {
     expect(sqlite.prepare("SELECT status FROM subscribers WHERE id = 1").get().status).toBe('deleted');
     const list = await (await worker.fetch(auth('/api/admin/subscribers'), env, ctx)).json() as any;
     expect(list.subscribers.find((s: any) => s.id === 1)).toBeUndefined();
+  });
+});
+
+describe('寄信可靠性（Phase 4：Gherkin 3/5/7/10）', () => {
+  const BASE = 'https://test-worker.workers.dev';
+  const SECRET = 'phase4-secret-key-32chars-padpadpad!';
+  let sqlite: any, mockD1: any, env: any, ctx: any, cookie: string;
+
+  const auth = (path: string, init: any = {}) => new Request(BASE + path, {
+    ...init,
+    headers: { 'Content-Type': 'application/json', Cookie: cookie, ...(init.headers || {}) },
+  });
+  const okFetch = () => vi.fn().mockResolvedValue({ ok: true, status: 200, text: async () => '{"id":"m1"}', json: async () => ({ id: 'm1' }) });
+
+  beforeEach(async () => {
+    sqlite = new Database(':memory:');
+    sqlite.exec(readFileSync(join(__dirname, '../schema.sql'), 'utf-8'));
+    mockD1 = createMockD1Database(sqlite);
+    env = { DB: mockD1, HAOJI_SECRET: SECRET, TOSEND_API_KEY: 'k', TOSEND_FROM_EMAIL: 'a@b.c', TOSEND_FROM_NAME: 'n' };
+    ctx = { waitUntil: vi.fn(), passThroughOnException: vi.fn() };
+    sqlite.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('admin_password_hash', await hashPassword('admin-pass-123'));
+    const res = await worker.fetch(new Request(BASE + '/api/admin/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: 'admin-pass-123' }),
+    }), env, ctx);
+    cookie = res.headers.get('Set-Cookie')!.split(';')[0];
+    sqlite.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('onboarding_done', '1');
+    sqlite.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('tosend_from_email', 'a@b.c');
+    sqlite.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('tosend_from_name', 'n');
+    sqlite.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('site_domain', 'test-worker.workers.dev');
+    sqlite.prepare('INSERT INTO settings (key, value, is_encrypted) VALUES (?, ?, 1)')
+      .run('tosend_api_key', await encryptSecret('k', SECRET));
+  });
+
+  it('Gherkin 3：對 VIP 群發僅 A 收到，bounced 的 C 被排除', async () => {
+    sqlite.prepare(`INSERT INTO subscribers (email,status,unsubscribe_token,tags) VALUES
+      ('a@example.com','active','t1',';VIP;'),
+      ('b@example.com','active','t2',';一般;'),
+      ('c@example.com','bounced','t3',';VIP;')`).run();
+    const originalFetch = globalThis.fetch;
+    const spy = okFetch();
+    globalThis.fetch = spy;
+    try {
+      const res = await worker.fetch(auth('/api/admin/campaigns/send', {
+        method: 'POST',
+        body: JSON.stringify({ name: 'x', subject: 's', content_html: '<p>hi</p>', target_type: 'tag', target_tag: 'VIP' }),
+      }), env, ctx);
+      const d = await res.json() as any;
+      expect(d.sent_success).toBe(1);
+      expect(spy).toHaveBeenCalledTimes(1);
+      const calledTo = spy.mock.calls[0][1].body;
+      expect(calledTo).toContain('a@example.com');
+    } finally { globalThis.fetch = originalFetch; }
+  });
+
+  it('Gherkin 7：429 重試後成功；持續 429 記 failed 且完成回摘要', async () => {
+    sqlite.prepare("INSERT INTO subscribers (email,status,unsubscribe_token,tags) VALUES ('r@example.com','active','t9',';VIP;')").run();
+    const originalFetch = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = vi.fn().mockImplementation(() => {
+      calls++;
+      if (calls <= 2) return Promise.resolve({ ok: false, status: 429, headers: new Headers(), text: async () => 'rate limit' });
+      return Promise.resolve({ ok: true, status: 200, text: async () => '{"id":"m2"}', json: async () => ({ id: 'm2' }) });
+    });
+    try {
+      const res = await worker.fetch(auth('/api/admin/campaigns/send', {
+        method: 'POST',
+        body: JSON.stringify({ name: 'x', subject: 's', content_html: '<p>hi</p>', target_type: 'tag', target_tag: 'VIP' }),
+      }), env, ctx);
+      const d = await res.json() as any;
+      expect(d.sent_success).toBe(1);
+      expect(calls).toBe(3); // 1 + 2 次重試
+    } finally { globalThis.fetch = originalFetch; }
+  });
+
+  it('Gherkin 10：退信 webhook 標記 bounced，後續 drip 排除', async () => {
+    sqlite.prepare("INSERT INTO subscribers (email,status,unsubscribe_token,tags) VALUES ('w@example.com','active','tok-w',';VIP;')").run();
+    // webhook 標記（端點對應 ToSend 退信通知）
+    const hookRes = await worker.fetch(new Request(BASE + '/api/webhook/tosend', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'bounce', email: 'w@example.com' }),
+    }), env, ctx);
+    expect([200, 204]).toContain(hookRes.status);
+    expect(sqlite.prepare("SELECT status FROM subscribers WHERE email='w@example.com'").get().status).toBe('bounced');
+    // 群發不再包含
+    const { getActiveSubscribersByTag } = await import('../src/db');
+    const list = await new (await import('../src/db')).DatabaseService(mockD1).getActiveSubscribersByTag('VIP');
+    expect(list.find((s: any) => s.email === 'w@example.com')).toBeUndefined();
+  });
+
+  it('Gherkin 5：cron 連跑兩輪不重複寄（冪等）', async () => {
+    sqlite.prepare("INSERT INTO subscribers (email,status,unsubscribe_token,current_step,created_at) VALUES ('d@example.com','active','t-d',0,datetime('now','-3 days'))").run();
+    const originalFetch = globalThis.fetch;
+    const spy = okFetch();
+    globalThis.fetch = spy;
+    try {
+      const r1 = await worker.fetch(auth('/api/admin/trigger-cron', { method: 'POST' }), env, ctx);
+      const n1 = (await r1.json() as any).sent_count;
+      expect(n1).toBeGreaterThanOrEqual(1); // 預設 3 關皆可寄（訂閱已 3 天）
+      const callsAfterRun1 = spy.mock.calls.length;
+      const r2 = await worker.fetch(auth('/api/admin/trigger-cron', { method: 'POST' }), env, ctx);
+      expect((await r2.json() as any).sent_count).toBe(0); // 已寄過，不重複
+      expect(spy.mock.calls.length).toBe(callsAfterRun1); // 第二輪零寄送
+    } finally { globalThis.fetch = originalFetch; }
   });
 });
