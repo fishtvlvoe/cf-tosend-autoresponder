@@ -255,7 +255,7 @@ export class DatabaseService {
     await this.db
       .prepare(`
         INSERT INTO delivery_logs (subscriber_id, sequence_id, tosend_message_id, status, error_message)
-        VALUES (?, 0, ?, ?, ?)
+        VALUES (?, NULL, ?, ?, ?)
       `)
       .bind(params.subscriberId, params.messageId || null, params.status, params.errorMsg || null)
       .run();
