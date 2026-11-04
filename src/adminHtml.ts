@@ -555,7 +555,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
           '<td class="py-3 text-right">' +
             (isUnsub
               ? '<span class="text-xs text-stone-400">已退訂隔離</span>'
-              : '<button onclick="openDirectSendModal(\'' + sub.email + '\', \'' + (sub.name || '') + '\')" class="text-xs bg-stone-100 hover:bg-stone-200 text-stone-800 font-medium px-2.5 py-1 rounded transition">個別發信</button>'
+              : '<button onclick="openDirectSendModal(\\'' + sub.email + '\\', \\'' + (sub.name || '') + '\\')" class="text-xs bg-stone-100 hover:bg-stone-200 text-stone-800 font-medium px-2.5 py-1 rounded transition">個別發信</button>'
             ) +
           '</td>' +
         '</tr>';
@@ -605,7 +605,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
       currentTargetName = name;
       document.getElementById('modal-recipient').innerText = (name ? name + ' <' + email + '>' : email);
       document.getElementById('modal-subject').value = '';
-      document.getElementById('modal-content').value = '嗨 ' + (name || '朋友') + '，\n\n';
+      document.getElementById('modal-content').value = '嗨 ' + (name || '朋友') + '，\\n\\n';
       document.getElementById('direct-send-modal').classList.remove('hidden');
     }
     function closeDirectSendModal() {
@@ -631,7 +631,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
             email: currentTargetEmail,
             name: currentTargetName,
             subject: subj,
-            content: '<p>' + content.replace(/\n/g, '</p><p>') + '</p>'
+            content: '<p>' + content.replace(/\\n/g, '</p><p>') + '</p>'
           })
         });
         const d = await res.json();
