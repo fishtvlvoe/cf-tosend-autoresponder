@@ -14,11 +14,11 @@
 
 - [ ] 1.0 需求覆蓋：本 Phase 對應 Requirement「密碼式後台認證」（spec.md，驗收情境見其 Scenario）
 
-- [ ] 1.1 `src/crypto.ts`：scrypt（N=16384 r=8 p=1 salt16 dkLen32，格式 scrypt:N:r:p:saltB64:hashB64）+ 常數時間比對 + 單元測試（round-trip、錯密拒絕）
-- [ ] 1.2 `src/crypto.ts`：AES-GCM（key=SHA-256(HAOJI_SECRET)，輸出 base64(iv):base64(ct含tag)）+ 單元測試（round-trip + 金鑰錯誤負測試）
-- [ ] 1.3 重寫認證：POST /api/admin/login（密碼驗證→發 32B session）、/setup-password（僅未建密碼時、5 次鎖 10 分鐘）、/change-password（舊密錯 401、成功重發 session）、PASSWORRD_NOT_SET 403 flow；**移除 ADMIN_API_KEY 與空 token 後門**
-- [ ] 1.4 Cookie 改 haoji_session（HttpOnly/SameSite=Strict/滑動 7 天，session_updated_at）
-- [ ] 1.5 測試：未建密碼→setup→登入→改密→舊 session 失效（Gherkin 4 對應）
+- [x] 1.1 `src/crypto.ts`：scrypt（N=16384 r=8 p=1 salt16 dkLen32，格式 scrypt:N:r:p:saltB64:hashB64）+ 常數時間比對 + 單元測試（round-trip、錯密拒絕）
+- [x] 1.2 `src/crypto.ts`：AES-GCM（key=SHA-256(HAOJI_SECRET)，輸出 base64(iv):base64(ct含tag)）+ 單元測試（round-trip + 金鑰錯誤負測試）
+- [x] 1.3 重寫認證：POST /api/admin/login（密碼驗證→發 32B session）、/setup-password（僅未建密碼時、5 次鎖 10 分鐘）、/change-password（舊密錯 401、成功重發 session）、PASSWORRD_NOT_SET 403 flow；**移除 ADMIN_API_KEY 與空 token 後門**
+- [x] 1.4 Cookie 改 haoji_session（HttpOnly/SameSite=Strict/滑動 7 天，session_updated_at）
+- [x] 1.5 測試：未建密碼→setup→登入→改密→舊 session 失效（Gherkin 4 對應）
 
 ## Phase 2：settings 與設定頁（Requirement: 中文設定頁）
 

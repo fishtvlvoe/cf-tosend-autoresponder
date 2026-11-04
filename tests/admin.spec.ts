@@ -4,6 +4,7 @@ import { DatabaseService } from '../src/db';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import worker from '../src/index';
+import { hashPassword } from '../src/crypto';
 
 function createMockD1Database(db: any): any {
   return {
@@ -45,19 +46,36 @@ describe('Admin 控制台與 API 端點驗證 (Admin Endpoints)', () => {
   let env: any;
   let ctx: any;
 
-  beforeEach(() => {
+  const ADMIN_PASSWORD = 'test-password-123';
+
+  async function login(): Promise<string> {
+    const res = await worker.fetch(
+      new Request('https://test-worker.workers.dev/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: ADMIN_PASSWORD }),
+      }),
+      env,
+      ctx
+    );
+    expect(res.status).toBe(200);
+    return res.headers.get('Set-Cookie')!.split(';')[0]; // haoji_session=...
+  }
+
+  beforeEach(async () => {
     sqlite = new Database(':memory:');
     const schemaSql = readFileSync(join(__dirname, '../schema.sql'), 'utf-8');
     sqlite.exec(schemaSql);
     mockD1 = createMockD1Database(sqlite);
     env = {
       DB: mockD1,
-      APP_URL: 'https://test-worker.workers.dev',
-      ADMIN_API_KEY: 'secret-token-123',
       TOSEND_API_KEY: 'test-tosend-key',
       TOSEND_FROM_EMAIL: 'sender@example.com',
       TOSEND_FROM_NAME: 'Test Sender',
     };
+    // 預建管理密碼（PBKDF2 在測試中只做一次，後續登入重用）
+    sqlite.prepare('INSERT INTO settings (key, value) VALUES (?, ?)')
+      .run('admin_password_hash', await hashPassword(ADMIN_PASSWORD));
     ctx = {
       waitUntil: vi.fn(),
       passThroughOnException: vi.fn(),
@@ -82,7 +100,7 @@ describe('Admin 控制台與 API 端點驗證 (Admin Endpoints)', () => {
     `).run();
 
     const req = new Request('https://test-worker.workers.dev/api/admin/stats', {
-      headers: { Authorization: 'Bearer secret-token-123' },
+      headers: { Cookie: await login() },
     });
     const res = await worker.fetch(req, env, ctx);
     expect(res.status).toBe(200);
@@ -98,7 +116,7 @@ describe('Admin 控制台與 API 端點驗證 (Admin Endpoints)', () => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: 'Bearer secret-token-123',
+        Cookie: await login(),
       },
       body: JSON.stringify({
         email: 'newbie@example.com',
@@ -122,7 +140,7 @@ describe('Admin 控制台與 API 端點驗證 (Admin Endpoints)', () => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: 'Bearer secret-token-123',
+        Cookie: await login(),
       },
       body: JSON.stringify({
         step_number: 1,
@@ -136,7 +154,7 @@ describe('Admin 控制台與 API 端點驗證 (Admin Endpoints)', () => {
     expect(saveRes.status).toBe(200);
 
     const getReq = new Request('https://test-worker.workers.dev/api/admin/sequences', {
-      headers: { Authorization: 'Bearer secret-token-123' },
+      headers: { Cookie: await login() },
     });
     const getRes = await worker.fetch(getReq, env, ctx);
     expect(getRes.status).toBe(200);
@@ -167,7 +185,7 @@ describe('Admin 控制台與 API 端點驗證 (Admin Endpoints)', () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: 'Bearer secret-token-123',
+          Cookie: await login(),
         },
         body: JSON.stringify({
           name: '本週產品更新',
@@ -216,7 +234,7 @@ describe('Admin 控制台與 API 端點驗證 (Admin Endpoints)', () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: 'Bearer secret-token-123',
+          Cookie: await login(),
         },
         body: JSON.stringify({
           email: 'single@example.com',
@@ -237,5 +255,70 @@ describe('Admin 控制台與 API 端點驗證 (Admin Endpoints)', () => {
     } finally {
       globalThis.fetch = originalFetch;
     }
+  });
+});
+
+describe('密碼式認證（Phase 1：setup / login / change-password / session 失效）', () => {
+  const BASE = 'https://test-worker.workers.dev';
+  let sqlite: any, mockD1: any, env: any, ctx: any;
+
+  beforeEach(() => {
+    sqlite = new Database(':memory:');
+    sqlite.exec(readFileSync(join(__dirname, '../schema.sql'), 'utf-8'));
+    mockD1 = createMockD1Database(sqlite);
+    env = { DB: mockD1, TOSEND_API_KEY: 'k', TOSEND_FROM_EMAIL: 'a@b.c', TOSEND_FROM_NAME: 'n' };
+    ctx = { waitUntil: vi.fn(), passThroughOnException: vi.fn() };
+  });
+
+  const post = (path: string, body: any, cookie?: string) =>
+    new Request(BASE + path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(cookie ? { Cookie: cookie } : {}) },
+      body: JSON.stringify(body),
+    });
+
+  it('密碼未建立時 login 回 403 PASSWORD_NOT_SET；setup 後可登入，且 setup 僅限一次', async () => {
+    let res = await worker.fetch(post('/api/admin/login', { password: 'whatever' }), env, ctx);
+    expect(res.status).toBe(403);
+    expect((await res.json() as any).code).toBe('PASSWORD_NOT_SET');
+
+    res = await worker.fetch(post('/api/admin/setup-password', { password: 'first-pass-123' }), env, ctx);
+    expect(res.status).toBe(200);
+
+    res = await worker.fetch(post('/api/admin/setup-password', { password: 'second-pass-123' }), env, ctx);
+    expect(res.status).toBe(403); // 已建立，永久關閉
+  });
+
+  it('空密碼絕不通過驗證（後門修復）', async () => {
+    sqlite.prepare('INSERT INTO settings (key, value) VALUES (?, ?)')
+      .run('admin_password_hash', await hashPassword('real-password-1'));
+    const res = await worker.fetch(post('/api/admin/login', { password: '' }), env, ctx);
+    expect(res.status).toBe(401);
+  });
+
+  it('修改密碼後舊 session 失效（舊 Cookie 呼叫 API 回 401）', async () => {
+    sqlite.prepare('INSERT INTO settings (key, value) VALUES (?, ?)')
+      .run('admin_password_hash', await hashPassword('old-password-1'));
+    const loginRes = await worker.fetch(post('/api/admin/login', { password: 'old-password-1' }), env, ctx);
+    const oldCookie = loginRes.headers.get('Set-Cookie')!.split(';')[0];
+
+    const changeRes = await worker.fetch(
+      post('/api/admin/change-password', { old_password: 'old-password-1', new_password: 'new-password-1' }, oldCookie),
+      env, ctx
+    );
+    expect(changeRes.status).toBe(200);
+    const newCookie = changeRes.headers.get('Set-Cookie')!.split(';')[0];
+
+    const stale = await worker.fetch(new Request(BASE + '/api/admin/stats', { headers: { Cookie: oldCookie } }), env, ctx);
+    expect(stale.status).toBe(401);
+
+    const fresh = await worker.fetch(new Request(BASE + '/api/admin/stats', { headers: { Cookie: newCookie } }), env, ctx);
+    expect(fresh.status).toBe(200);
+  });
+
+  it('/admin 未登入 302 導向 /login', async () => {
+    const res = await worker.fetch(new Request(BASE + '/admin'), env, ctx);
+    expect(res.status).toBe(302);
+    expect(res.headers.get('Location')).toContain('/login');
   });
 });

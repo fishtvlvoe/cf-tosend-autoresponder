@@ -162,16 +162,17 @@ export function renderLoginPage(): Response {
         CF
       </div>
       <h1 class="text-xl font-bold text-stone-900">後台管理員登入</h1>
-      <p class="text-xs text-stone-500 mt-1">請輸入管理金鑰 (ADMIN_API_KEY) 進入控制台</p>
+      <p class="text-xs text-stone-500 mt-1">請輸入管理密碼進入控制台</p>
     </div>
 
+    <!-- 登入模式 -->
     <form id="loginForm" class="space-y-4">
       <div>
-        <label for="apiKey" class="block text-xs font-semibold text-stone-700 mb-1.5">管理金鑰 / Token</label>
+        <label for="password" class="block text-xs font-semibold text-stone-700 mb-1.5">管理密碼</label>
         <input 
           type="password" 
-          id="apiKey" 
-          placeholder="本機測試可直接留空或輸入金鑰" 
+          id="password" 
+          placeholder="輸入你的管理密碼" 
           class="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-lg text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-900 focus:bg-white transition"
         />
       </div>
@@ -187,24 +188,71 @@ export function renderLoginPage(): Response {
         <a href="/" class="text-xs text-stone-400 hover:text-stone-600 transition">返回前台訂閱頁面</a>
       </div>
     </form>
+
+    <!-- 首次建立密碼模式（密碼尚未建立時自動切換） -->
+    <form id="setupForm" class="space-y-4 hidden">
+      <div class="mb-2 text-center">
+        <p class="text-sm font-semibold text-stone-800">首次使用：建立管理密碼</p>
+        <p class="text-xs text-stone-500 mt-1">密碼至少 8 個字元，建立後請妥善保管</p>
+      </div>
+      <div>
+        <label for="newPassword" class="block text-xs font-semibold text-stone-700 mb-1.5">設定密碼</label>
+        <input type="password" id="newPassword" placeholder="至少 8 個字元" class="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-stone-900" />
+      </div>
+      <div>
+        <label for="confirmPassword" class="block text-xs font-semibold text-stone-700 mb-1.5">確認密碼</label>
+        <input type="password" id="confirmPassword" placeholder="再輸入一次" class="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-stone-900" />
+      </div>
+      <button type="submit" class="w-full bg-stone-900 hover:bg-stone-800 text-white font-medium py-2.5 rounded-lg text-sm transition shadow-sm">建立密碼並進入</button>
+    </form>
   </main>
 
   <script>
-    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    const loginForm = document.getElementById('loginForm');
+    const setupForm = document.getElementById('setupForm');
+
+    function switchToSetup() {
+      loginForm.classList.add('hidden');
+      setupForm.classList.remove('hidden');
+    }
+
+    loginForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const token = document.getElementById('apiKey').value.trim();
-      // 呼叫後端登入 API，讓 Worker 設 HttpOnly Cookie
+      const password = document.getElementById('password').value;
       const res = await fetch('/api/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token }),
+        body: JSON.stringify({ password }),
+        credentials: 'same-origin',
+      });
+      if (res.ok) {
+        window.location.href = '/admin';
+        return;
+      }
+      const d = await res.json().catch(() => ({}));
+      if (res.status === 403 && d.code === 'PASSWORD_NOT_SET') {
+        switchToSetup();
+      } else {
+        alert('登入失敗：' + (d.error || '密碼錯誤'));
+      }
+    });
+
+    setupForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const p1 = document.getElementById('newPassword').value;
+      const p2 = document.getElementById('confirmPassword').value;
+      if (p1 !== p2) { alert('兩次輸入的密碼不一致'); return; }
+      const res = await fetch('/api/admin/setup-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: p1 }),
         credentials: 'same-origin',
       });
       if (res.ok) {
         window.location.href = '/admin';
       } else {
         const d = await res.json().catch(() => ({}));
-        alert('登入失敗：' + (d.error || '金鑰錯誤'));
+        alert('建立失敗：' + (d.error || '請稍後再試'));
       }
     });
   </script>

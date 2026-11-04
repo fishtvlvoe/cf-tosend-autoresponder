@@ -288,4 +288,31 @@ export class DatabaseService {
       .run();
     return res.meta.last_row_id as number;
   }
+
+  // ── settings 鍵值存取 ────────────────────────────────
+
+  /** 讀取單一設定；不存在回 null */
+  async getSetting(key: string): Promise<{ key: string; value: string; is_encrypted: number } | null> {
+    return await this.db
+      .prepare('SELECT key, value, is_encrypted FROM settings WHERE key = ?')
+      .bind(key)
+      .first<{ key: string; value: string; is_encrypted: number }>();
+  }
+
+  /** 寫入設定（upsert） */
+  async setSetting(key: string, value: string, isEncrypted = 0): Promise<void> {
+    await this.db
+      .prepare(
+        `INSERT INTO settings (key, value, is_encrypted, updated_at)
+         VALUES (?, ?, ?, strftime('%Y-%m-%dT%H:%M:%SZ','now'))
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value, is_encrypted = excluded.is_encrypted, updated_at = excluded.updated_at`
+      )
+      .bind(key, value, isEncrypted)
+      .run();
+  }
+
+  /** 刪除設定（忘記密碼救濟、金鑰重設用） */
+  async deleteSetting(key: string): Promise<void> {
+    await this.db.prepare('DELETE FROM settings WHERE key = ?').bind(key).run();
+  }
 }

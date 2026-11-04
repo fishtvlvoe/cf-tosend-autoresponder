@@ -1,11 +1,9 @@
 export interface Env {
   DB: D1Database;
   TOSEND_API_KEY: string;
-  ADMIN_API_KEY?: string;
   TOSEND_API_BASE_URL?: string;
   TOSEND_FROM_EMAIL: string;
   TOSEND_FROM_NAME: string;
-  APP_URL?: string;
 }
 
 export interface Subscriber {

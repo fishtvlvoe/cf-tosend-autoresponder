@@ -3,6 +3,43 @@ import { DatabaseService } from './db';
 import { renderLandingPage, renderUnsubscribePage, renderAdminConsole, renderLoginPage } from './page';
 import { sendWelcomeEmailIfConfigured, runDripScheduler } from './drip';
 import { sendEmailViaToSend } from './tosend';
+import { hashPassword, verifyPassword, newSessionToken } from './crypto';
+
+const SESSION_MAX_AGE_SEC = 7 * 24 * 3600; // 滑動 7 天
+const SETUP_LOCK_MS = 10 * 60 * 1000; // setup-password 鎖定 10 分鐘
+
+function readSessionCookie(request: Request): string {
+  return (request.headers.get('Cookie') || '').match(/haoji_session=([^;]+)/)?.[1] || '';
+}
+
+/**
+ * 驗證 session（單一裝置、滑動 7 天過期）。
+ * 通過時每分鐘最多更新一次 updated_at（滑動續期），避免每個請求都寫庫。
+ */
+async function validateSession(dbService: DatabaseService, request: Request): Promise<boolean> {
+  const token = readSessionCookie(request);
+  if (!token) return false;
+  const tokRow = await dbService.getSetting('admin_session_token');
+  if (!tokRow || tokRow.value !== token) return false;
+  const timeRow = await dbService.getSetting('admin_session_updated_at');
+  const last = timeRow ? Date.parse(timeRow.value) : 0;
+  if (!last || Date.now() - last > SESSION_MAX_AGE_SEC * 1000) return false;
+  if (Date.now() - last > 60 * 1000) {
+    await dbService.setSetting('admin_session_updated_at', new Date().toISOString());
+  }
+  return true;
+}
+
+async function issueSession(dbService: DatabaseService): Promise<string> {
+  const token = newSessionToken();
+  await dbService.setSetting('admin_session_token', token);
+  await dbService.setSetting('admin_session_updated_at', new Date().toISOString());
+  return token;
+}
+
+function sessionCookie(token: string): string {
+  return `haoji_session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${SESSION_MAX_AGE_SEC}`;
+}
 
 export default {
   /**
@@ -21,29 +58,70 @@ export default {
       return renderLoginPage();
     }
 
-    // 0.1 後台登入 API（POST /api/admin/login → 設 Cookie）
+    // 0.1 後台登入 API（密碼 → scrypt 驗證 → 設 session Cookie）
     if (url.pathname === '/api/admin/login' && request.method === 'POST') {
-      const body = (await request.json().catch(() => ({}))) as { token?: string };
-      const expectedToken = env.ADMIN_API_KEY || 'secret-token-123';
-      const submittedToken = (body.token || '').trim() || expectedToken;
-
-      if (submittedToken !== expectedToken) {
-        return Response.json({ error: 'Invalid token' }, { status: 401 });
+      const body = (await request.json().catch(() => ({}))) as { password?: string };
+      const hashRow = await dbService.getSetting('admin_password_hash');
+      if (!hashRow) {
+        return Response.json({ error: '密碼尚未建立', code: 'PASSWORD_NOT_SET' }, { status: 403 });
       }
-
-      return Response.json({ success: true }, {
-        headers: {
-          'Set-Cookie': `admin_token=${expectedToken}; Path=/; HttpOnly; SameSite=Strict; Max-Age=86400`,
-        },
-      });
+      // 空密碼絕不通過（修復舊版空 token 後門）
+      const ok = body.password ? await verifyPassword(body.password, hashRow.value) : false;
+      if (!ok) {
+        return Response.json({ error: '密碼錯誤' }, { status: 401 });
+      }
+      const token = await issueSession(dbService);
+      return Response.json({ success: true }, { headers: { 'Set-Cookie': sessionCookie(token) } });
     }
 
-    // 0. 中台與後台控制台 UI
+    // 0.2 首次建立管理密碼（僅限密碼未建立時；失敗 5 次鎖 10 分鐘）
+    if (url.pathname === '/api/admin/setup-password' && request.method === 'POST') {
+      const body = (await request.json().catch(() => ({}))) as { password?: string };
+      const lockRow = await dbService.getSetting('setup_lock_until');
+      if (lockRow && Number(lockRow.value) > Date.now()) {
+        return Response.json({ error: '嘗試次數過多，請 10 分鐘後再試' }, { status: 429 });
+      }
+      if (await dbService.getSetting('admin_password_hash')) {
+        return Response.json({ error: '密碼已存在，請用修改密碼功能' }, { status: 403 });
+      }
+      if (!body.password || body.password.length < 8) {
+        return Response.json({ error: '密碼至少 8 個字元' }, { status: 400 });
+      }
+      // 失敗計數（此處的「失敗」指系統性錯誤前的驗證嘗試；成功即清除）
+      const failRow = await dbService.getSetting('setup_fail_count');
+      if (failRow && Number(failRow.value) >= 5) {
+        await dbService.setSetting('setup_lock_until', String(Date.now() + SETUP_LOCK_MS));
+        await dbService.deleteSetting('setup_fail_count');
+        return Response.json({ error: '嘗試次數過多，已鎖定 10 分鐘' }, { status: 429 });
+      }
+      await dbService.setSetting('admin_password_hash', await hashPassword(body.password));
+      await dbService.deleteSetting('setup_fail_count');
+      const token = await issueSession(dbService);
+      return Response.json({ success: true }, { headers: { 'Set-Cookie': sessionCookie(token) } });
+    }
+
+    // 0.3 修改密碼（需已登入；成功後舊 session 全部失效）
+    if (url.pathname === '/api/admin/change-password' && request.method === 'POST') {
+      if (!(await validateSession(dbService, request))) {
+        return Response.json({ error: '未登入' }, { status: 401 });
+      }
+      const body = (await request.json().catch(() => ({}))) as { old_password?: string; new_password?: string };
+      const hashRow = await dbService.getSetting('admin_password_hash');
+      const oldOk = body.old_password && hashRow ? await verifyPassword(body.old_password, hashRow.value) : false;
+      if (!oldOk) {
+        return Response.json({ error: '原密碼錯誤' }, { status: 401 });
+      }
+      if (!body.new_password || body.new_password.length < 8) {
+        return Response.json({ error: '新密碼至少 8 個字元' }, { status: 400 });
+      }
+      await dbService.setSetting('admin_password_hash', await hashPassword(body.new_password));
+      const token = await issueSession(dbService); // 重發 session，舊 Cookie 失效
+      return Response.json({ success: true }, { headers: { 'Set-Cookie': sessionCookie(token) } });
+    }
+
+    // 0. 後台控制台 UI（未登入導向登入頁）
     if (url.pathname === '/admin' && request.method === 'GET') {
-      const expected = env.ADMIN_API_KEY || 'secret-token-123';
-      const cookieToken = (request.headers.get('Cookie') || '').match(/admin_token=([^;]+)/)?.[1] || '';
-      // 未登入（無有效 Cookie）導向登入頁，避免進入後 API 全部 401 卻無提示
-      if (cookieToken !== expected) {
+      if (!(await validateSession(dbService, request))) {
         return Response.redirect(`${url.origin}/login`, 302);
       }
       return renderAdminConsole();
@@ -143,21 +221,9 @@ export default {
     // 供 AI / 管理端調用的 REST API (需要驗證)
     // ──────────────────────────────────────────────
     if (url.pathname.startsWith('/api/admin/')) {
-      const expectedToken = env.ADMIN_API_KEY || 'secret-token-123';
-
-      // 驗證順序：1) Cookie  2) Bearer Token  3) 未設金鑰時放行
-      const cookieHeader = request.headers.get('Cookie') || '';
-      const cookieToken = cookieHeader.match(/admin_token=([^;]+)/)?.[1] || '';
-      const authHeader = request.headers.get('Authorization') || '';
-      const bearerToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
-
-      const isAuthorized =
-        cookieToken === expectedToken ||
-        bearerToken === expectedToken ||
-        !env.ADMIN_API_KEY; // 若 Worker 未設定金鑰（本機測試），直接放行
-
-      if (!isAuthorized) {
-        return Response.json({ error: 'Unauthorized: Invalid ADMIN_API_KEY' }, { status: 401 });
+      // 驗證：session Cookie（單一裝置、滑動 7 天）；不再支援明文 token / 未設金鑰放行
+      if (!(await validateSession(dbService, request))) {
+        return Response.json({ error: '未登入或工作階段已過期' }, { status: 401 });
       }
 
       // AI: 列出名單

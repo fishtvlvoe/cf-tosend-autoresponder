@@ -80,3 +80,11 @@ VALUES
     '第 4 天深度解析：實戰案例分享', 
     '<p>嗨 <strong>{{name}}</strong>，</p><p>這是我們為你準備的深度實戰案例解析。透過這套流程，團隊省下了超過 80% 的手動溝通時間...</p><p>有任何問題隨時回覆這封信與我討論！</p>'
 );
+
+-- 系統設定表（key-value；is_encrypted=1 的鍵存 AES-GCM 密文）
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  is_encrypted INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
+);
