@@ -232,7 +232,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
           </div>
         </div>
 
-        <!-- 3. Plunk 視覺化 Email 編輯器 -->
+        <!-- 3. 視覺化 Email 編輯器 -->
         <div class="flex-1 flex flex-col space-y-2">
           <div class="flex items-center justify-between">
             <label class="text-xs font-semibold text-stone-700">廣播信正文排版</label>

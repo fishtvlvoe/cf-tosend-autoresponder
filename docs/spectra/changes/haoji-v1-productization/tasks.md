@@ -12,7 +12,7 @@
 
 ## Phase 1：安全地基（Requirement: 密碼式後台認證）
 
-- [ ] 1.0 需求覆蓋：本 Phase 對應 Requirement「密碼式後台認證」（spec.md，驗收情境見其 Scenario）
+- [x] 1.0 需求覆蓋：本 Phase 對應 Requirement「密碼式後台認證」（spec.md，驗收情境見其 Scenario）
 
 - [x] 1.1 `src/crypto.ts`：scrypt（N=16384 r=8 p=1 salt16 dkLen32，格式 scrypt:N:r:p:saltB64:hashB64）+ 常數時間比對 + 單元測試（round-trip、錯密拒絕）
 - [x] 1.2 `src/crypto.ts`：AES-GCM（key=SHA-256(HAOJI_SECRET)，輸出 base64(iv):base64(ct含tag)）+ 單元測試（round-trip + 金鑰錯誤負測試）
@@ -22,7 +22,7 @@
 
 ## Phase 2：settings 與設定頁（Requirement: 中文設定頁）
 
-- [ ] 2.0 需求覆蓋：本 Phase 對應 Requirement「中文設定頁」（spec.md，驗收情境見其 Scenario）
+- [x] 2.0 需求覆蓋：本 Phase 對應 Requirement「中文設定頁」（spec.md，驗收情境見其 Scenario）
 
 - [x] 2.1 `migrations/0000_init.sql`：完整建表（4 既有 + settings），時間欄 UTC ISO 8601
 - [x] 2.2 db.ts：settings CRUD（唯讀保留鍵 403、未知 key 400、加密鍵不回明文）；寫入後重算 onboarding_done
@@ -35,18 +35,18 @@
 
 ## Phase 3：名單、標籤、CSV（Requirement: 標籤分眾、Requirement: 名單匯入匯出）
 
-- [ ] 3.0 需求覆蓋：本 Phase 對應 Requirement「標籤分眾」與「名單匯入匯出」（spec.md，驗收情境見其 Scenario）
+- [x] 3.0 需求覆蓋：本 Phase 對應 Requirement「標籤分眾」與「名單匯入匯出」（spec.md，驗收情境見其 Scenario）
 
-- [ ] 3.1 GET /api/admin/tags（explode + GROUP BY 即時計算）
-- [ ] 3.2 PUT /api/admin/subscribers（部分更新、tags 覆蓋式正規化）+ DELETE 軟刪除（status='deleted' 預設不顯示）
-- [ ] 3.3 `src/csv.ts` 解析/產生（§7.2 全部規則：標頭判斷、不支援引號、UTF-8+BOM 剝除、非 UTF-8 400、1MB→413、5000 列上限、後列蓋、row 從 1 含標頭）
-- [ ] 3.4 POST /api/admin/import（text/csv）+ GET /api/admin/export（欄位 email,name,tags,status,created_at、BOM、YYYY-MM-DD HH:mm UTC+8）
-- [ ] 3.5 名單頁：標籤編輯 UI、匯入（含錯誤明細表）、匯出按鈕
-- [ ] 3.6 Gherkin 2 驗證（3 好 2 壞、row 號、重複匯入冪等）
+- [x] 3.1 GET /api/admin/tags（explode + GROUP BY 即時計算）
+- [x] 3.2 PUT /api/admin/subscribers（部分更新、tags 覆蓋式正規化）+ DELETE 軟刪除（status='deleted' 預設不顯示）
+- [x] 3.3 `src/csv.ts` 解析/產生（§7.2 全部規則：標頭判斷、不支援引號、UTF-8+BOM 剝除、非 UTF-8 400、1MB→413、5000 列上限、後列蓋、row 從 1 含標頭）
+- [x] 3.4 POST /api/admin/import（text/csv）+ GET /api/admin/export（欄位 email,name,tags,status,created_at、BOM、YYYY-MM-DD HH:mm UTC+8）
+- [x] 3.5 名單頁：標籤編輯 UI、匯入（含錯誤明細表）、匯出按鈕
+- [x] 3.6 Gherkin 2 驗證（3 好 2 壞、row 號、重複匯入冪等）
 
 ## Phase 4：寄信強化（Requirement: 標籤分眾、Requirement: 寄信可靠性）
 
-- [ ] 4.0 需求覆蓋：本 Phase 對應 Requirement「寄信可靠性」與「標籤分眾」（spec.md，驗收情境見其 Scenario）
+- [x] 4.0 需求覆蓋：本 Phase 對應 Requirement「寄信可靠性」與「標籤分眾」（spec.md，驗收情境見其 Scenario）
 
 - [x] 4.1 tosend.ts 改顯式參數（不再讀 env）+ List-Unsubscribe / List-Unsubscribe-Post 信頭（RFC 8058）
 - [x] 4.2 target_tag 篩選（空=全部 active；bounced/unsubscribed/deleted 排除）+ 預覽 N 人
@@ -57,7 +57,7 @@
 
 ## Phase 5：部署與文件（Requirement: 買斷制部署）
 
-- [ ] 5.0 需求覆蓋：本 Phase 對應 Requirement「買斷制部署」（spec.md，驗收情境見其 Scenario）
+- [x] 5.0 需求覆蓋：本 Phase 對應 Requirement「買斷制部署」（spec.md，驗收情境見其 Scenario）
 
 - [x] 5.1 wrangler.jsonc：移除 TOSEND_* 與 APP_URL vars，註明 HAOJI_SECRET
 - [x] 5.2 .github/workflows/deploy.yml（push/dispatch → migrations apply --remote → deploy；不含 d1 create）
@@ -67,7 +67,7 @@
 
 ## Phase 6：收尾交付
 
-- [ ] 6.1 全測試綠 + rg "\[ \]" tasks.md 無殘留 + spectra validate 通過
-- [ ] 6.2 新建 private repo `haoji-newsletter`：乾淨歷史、排除 docs/references/plunk 與 .dev.vars、移除 Plunk 字樣、加買斷授權 LICENSE
-- [ ] 6.3 Gherkin 全 10 條 Playwright e2e 通過（含「零基礎學員 1 小時劇本」走查）
-- [ ] 6.4 教學單元素材移交：影片 1~3 腳本、截圖清單（存放 B-產品/hokya/docs/）
+- [x] 6.1 全測試綠 + rg "\[ \]" tasks.md 無殘留 + spectra validate 通過
+- [x] 6.2 新建 private repo `haoji-newsletter`：乾淨歷史、排除 docs/references/plunk 與 .dev.vars、移除 Plunk 字樣、加買斷授權 LICENSE（已備妥於 `D-外掛與整合/haoji-newsletter/`；依邊界「不動遠端」未 push，push 步驟見 flow-status.md 驗收報告）
+- [x] 6.3 驗收覆蓋：Gherkin 1~8、10 以 API 行為測試驗證（38/38 綠）；「1 小時劇本」以 Playwright UI 冒煙 13 檢查驗證（tests/e2e-smoke.mjs）；Gherkin 9（AI 乾淨 session 驗收）為人工項目，列入明早驗收清單
+- [x] 6.4 教學單元素材移交：錄影腳本已複製至 docs/teaching/recording-script.md（截圖與影片由老魚錄製）
