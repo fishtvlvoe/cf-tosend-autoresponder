@@ -1,6 +1,6 @@
 import { Env } from './types';
 import { DatabaseService } from './db';
-import { renderLandingPage, renderUnsubscribePage, renderAdminConsole } from './page';
+import { renderLandingPage, renderUnsubscribePage, renderAdminConsole, renderLoginPage } from './page';
 import { sendWelcomeEmailIfConfigured, runDripScheduler } from './drip';
 
 export default {
@@ -10,6 +10,11 @@ export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     const dbService = new DatabaseService(env.DB);
+
+    // 0. 後台管理員登入頁面
+    if (url.pathname === '/login' && request.method === 'GET') {
+      return renderLoginPage();
+    }
 
     // 0. 中台與後台控制台 UI
     if (url.pathname === '/admin' && request.method === 'GET') {

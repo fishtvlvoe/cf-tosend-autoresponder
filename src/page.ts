@@ -13,7 +13,20 @@ export function renderLandingPage(): Response {
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", sans-serif; }
   </style>
 </head>
-<body class="bg-[#fcfbf9] text-[#1c1917] flex items-center justify-center min-h-screen px-4 antialiased">
+<body class="bg-[#fcfbf9] text-[#1c1917] flex flex-col min-h-screen antialiased">
+  <header class="w-full max-w-4xl mx-auto py-5 px-6 flex items-center justify-between">
+    <div class="flex items-center gap-2">
+      <div class="w-7 h-7 rounded bg-stone-900 text-white flex items-center justify-center font-mono font-bold text-xs">
+        CF
+      </div>
+      <span class="font-semibold text-sm text-stone-900 tracking-tight">Autoresponder</span>
+    </div>
+    <a href="/login" class="text-xs font-medium text-stone-600 hover:text-stone-900 bg-white hover:bg-stone-50 border border-stone-200 px-3 py-1.5 rounded-lg transition shadow-2xs">
+      管理員登入
+    </a>
+  </header>
+
+  <div class="flex-1 flex items-center justify-center px-4 py-8">
   <main class="max-w-md w-full bg-white p-8 sm:p-10 rounded-2xl shadow-sm border border-stone-200/80">
     <!-- Header -->
     <div class="mb-6">
@@ -116,6 +129,74 @@ export function renderLandingPage(): Response {
         submitBtn.disabled = false;
         submitBtn.innerText = '立即訂閱';
       }
+    });
+  </script>
+  </div>
+</body>
+</html>`;
+
+  return new Response(html, {
+    headers: { 'Content-Type': 'text/html; charset=UTF-8' },
+  });
+}
+
+/**
+ * 管理員登入頁面 (Admin Login Page)
+ */
+export function renderLoginPage(): Response {
+  const html = `<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>管理員登入 - cf-tosend-autoresponder</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", sans-serif; }
+  </style>
+</head>
+<body class="bg-[#fcfbf9] text-stone-800 flex items-center justify-center min-h-screen px-4 antialiased">
+  <main class="max-w-sm w-full bg-white p-8 rounded-2xl shadow-sm border border-stone-200">
+    <div class="mb-6 text-center">
+      <div class="w-10 h-10 rounded-lg bg-stone-900 text-white flex items-center justify-center font-mono font-bold text-sm mx-auto mb-3">
+        CF
+      </div>
+      <h1 class="text-xl font-bold text-stone-900">後台管理員登入</h1>
+      <p class="text-xs text-stone-500 mt-1">請輸入管理金鑰 (ADMIN_API_KEY) 進入控制台</p>
+    </div>
+
+    <form id="loginForm" class="space-y-4">
+      <div>
+        <label for="apiKey" class="block text-xs font-semibold text-stone-700 mb-1.5">管理金鑰 / Token</label>
+        <input 
+          type="password" 
+          id="apiKey" 
+          placeholder="本機測試可直接留空或輸入金鑰" 
+          class="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-lg text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-900 focus:bg-white transition"
+        />
+      </div>
+
+      <button 
+        type="submit" 
+        class="w-full bg-stone-900 hover:bg-stone-800 text-white font-medium py-2.5 rounded-lg text-sm transition shadow-sm"
+      >
+        進入控制台
+      </button>
+
+      <div class="text-center pt-2">
+        <a href="/" class="text-xs text-stone-400 hover:text-stone-600 transition">返回前台訂閱頁面</a>
+      </div>
+    </form>
+  </main>
+
+  <script>
+    document.getElementById('loginForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const token = document.getElementById('apiKey').value.trim();
+      if (token) {
+        localStorage.setItem('ADMIN_API_KEY', token);
+      }
+      window.location.href = '/admin';
     });
   </script>
 </body>

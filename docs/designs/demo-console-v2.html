@@ -35,6 +35,9 @@
       <button onclick="triggerCronSimulation()" class="text-xs bg-stone-900 hover:bg-stone-800 text-white font-medium px-3.5 py-1.5 rounded transition">
         執行單次排程派送
       </button>
+      <button onclick="logoutAdmin()" class="text-xs bg-stone-100 hover:bg-stone-200 text-stone-600 hover:text-stone-900 font-medium px-3 py-1.5 rounded transition">
+        登出
+      </button>
     </div>
   </header>
 
@@ -798,6 +801,10 @@
       if (!url) return;
       const btnHtml = '<div style="text-align: center; margin: 24px 0;"><a href="' + url + '" target="_blank" style="background-color: #1c1917; color: #ffffff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600; display: inline-block;">' + txt + '</a></div><p></p>';
       document.execCommand('insertHTML', false, btnHtml);
+    }
+    function logoutAdmin() {
+      localStorage.removeItem('ADMIN_API_KEY');
+      window.location.href = '/login';
     }
   </script>
 </body>
