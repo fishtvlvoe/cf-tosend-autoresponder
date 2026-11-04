@@ -1,3 +1,7 @@
+/**
+ * 好寄資料層（db.ts）
+ * 職責：所有 D1 SQL 的唯一入口。改欄位要同步 schema.sql 與 migrations/。
+ */
 import { Env, Subscriber, EmailSequence, normalizeTags } from './types';
 
 export class DatabaseService {

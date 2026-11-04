@@ -1,3 +1,8 @@
+/**
+ * 好寄主路由（index.ts）
+ * 職責：HTTP 路由總表、認證 guard、所有 /api/admin/* 端點。
+ * 詳細端點規格見 docs/designs/newsletter-kit-v1-spec.md §5。
+ */
 import { Env } from './types';
 import { DatabaseService } from './db';
 import { renderLandingPage, renderUnsubscribePage, renderAdminConsole, renderLoginPage } from './page';

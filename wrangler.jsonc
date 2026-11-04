@@ -12,11 +12,8 @@
   ],
   "triggers": {
     "crons": ["0 * * * *"]
-  },
-  "vars": {
-    "TOSEND_API_BASE_URL": "https://api.tosend.com/v2",
-    "TOSEND_FROM_EMAIL": "fish@aiver.me",
-    "TOSEND_FROM_NAME": "Autoresponder 團隊",
-    "APP_URL": "https://cf-tosend-autoresponder.workers.dev"
   }
+  // Secrets（不透過 vars 存放，請用 wrangler secret put 或 GitHub Secrets）：
+  //   HAOJI_SECRET — AES-256 加密金鑰，至少 32 字元隨機字串（用來加密 ToSend API Key）
+  // ToSend 寄信相關設定（API Key、寄件人、網域）一律在後台「設定」頁填寫，存於 D1 settings 表。
 }

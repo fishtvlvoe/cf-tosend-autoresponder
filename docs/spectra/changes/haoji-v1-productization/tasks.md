@@ -59,11 +59,11 @@
 
 - [ ] 5.0 需求覆蓋：本 Phase 對應 Requirement「買斷制部署」（spec.md，驗收情境見其 Scenario）
 
-- [ ] 5.1 wrangler.jsonc：移除 TOSEND_* 與 APP_URL vars，註明 HAOJI_SECRET
-- [ ] 5.2 .github/workflows/deploy.yml（push/dispatch → migrations apply --remote → deploy；不含 d1 create）
-- [ ] 5.3 README.md 學員開箱（對應教學單元：授權 CF、建 D1、部署、設定、忘記密碼救濟、勿設 public 紅框、HAOJI_SECRET≥32 字元）
-- [ ] 5.4 AGENTS.md + 各 src 檔首 3~5 行中文導讀（Gherkin 9 AI 友善驗收：乾淨 session Claude Code 改對檔案）
-- [ ] 5.5 免費額度核算（CF 定價頁截圖日期 + 500 名單情境），寫入 README 成本章節
+- [x] 5.1 wrangler.jsonc：移除 TOSEND_* 與 APP_URL vars，註明 HAOJI_SECRET
+- [x] 5.2 .github/workflows/deploy.yml（push/dispatch → migrations apply --remote → deploy；不含 d1 create）
+- [x] 5.3 README.md 學員開箱（對應教學單元：授權 CF、建 D1、部署、設定、忘記密碼救濟、勿設 public 紅框、HAOJI_SECRET≥32 字元）
+- [x] 5.4 AGENTS.md + 各 src 檔首 3~5 行中文導讀（Gherkin 9 AI 友善驗收：乾淨 session Claude Code 改對檔案）
+- [x] 5.5 免費額度核算（CF 定價頁截圖日期 + 500 名單情境），寫入 README 成本章節
 
 ## Phase 6：收尾交付
 

@@ -1,3 +1,7 @@
+/**
+ * 好寄排程引擎（drip.ts）
+ * 職責：歡迎信（step1 delay=0）與 cron 跟進信；冪等設計見規格書 §7.5。
+ */
 import { Env, Subscriber, EmailSequence } from './types';
 import { DatabaseService } from './db';
 import { sendEmailViaToSend } from './tosend';

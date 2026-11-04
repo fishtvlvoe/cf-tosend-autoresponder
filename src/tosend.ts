@@ -1,3 +1,8 @@
+/**
+ * 好寄寄信模組（tosend.ts）
+ * 職責：ToSend REST API 寄信。顯式參數（apiKey/from），呼叫端以 mailer.ts 注入。
+ * 內建 RFC 8058 一鍵退訂信頭（List-Unsubscribe / List-Unsubscribe-Post）。
+ */
 import { SendEmailPayload } from './types';
 
 const DEFAULT_TOSEND_BASE_URL = 'https://api.tosend.com/v2';

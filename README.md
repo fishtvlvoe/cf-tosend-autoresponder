@@ -1,113 +1,71 @@
-# Cloudflare + ToSend Email Autoresponder (cf-tosend-autoresponder)
+# 好寄（Hokya）— 零月費電子報自架包
 
-輕量、高效、100% 跑在 **Cloudflare Workers + Cloudflare D1** 上的開源 Email Autoresponder / Drip Campaign 系統。後端直接介接 **ToSend REST API**，專為 **AI Agent 操作** 與 **零伺服器維護** 設計。
+一次買斷的電子報系統：收名單、寄信、排程跟進，全繁中，跑在你自己的 Cloudflare 免費帳號裡。
 
----
+## 你會得到什麼
 
-## 📌 功能亮點
+- 訂閱著陸頁（文案隨你改）＋ 自動歡迎信 ＋ 3 關排程跟進信
+- 全繁中後台：名單管理、標籤分眾、CSV 匯入匯出、寄信紀錄
+- 依標籤群發、手動單發、測試信
+- 一鍵退訂（RFC 8058）＋ 退信自動標記，保護你的寄信評分
+- 全套程式碼歸你，可丟給 AI（Claude Code / Cursor）自由改造
 
-1. **極簡訂閱著陸頁**：
-   - 訪問根目錄 `/` 即可看到專屬設計的極簡淺色訂閱頁面。
-   - 支援姓名、Email 輸入，包含即時訂閱成功與錯誤反饋。
-2. **完整發信與退信機制**：
-   - 串接 **ToSend REST API**（`https://api.tosend.com/v2/emails`）。
-   - 自動在信末附加 RFC 8058 規範的 **One-Click List-Unsubscribe** 標頭與專屬退訂連結。
-   - 提供 Webhook 端點 `/api/webhook/tosend` 自動攔截 Bounce（退信）與 Complaint（投訴）並標記名單。
-3. **自動排程 (Autoresponder / Drip Sequence)**：
-   - 使用 Cloudflare **Cron Triggers**（預設每小時觸發一次）。
-   - 依據訂閱時間差（`created_at + delay_hours`）自動發送第 1 封（即時歡迎信）、第 2 封（24 小時後）、第 3 封（72 小時後）等序列信件。
-   - 支援模板動態變數替換（如 `{{name}}`、`{{email}}`）。
-4. **專為 AI 設計的 REST API**：
-   - AI 可以直接透過 HTTP Bearer Token 查詢名單、新增或修改信件範本、手動觸發測試排程。
+## 開箱三步驟（約 30 分鐘，全程不用寫程式）
 
----
+### 步驟 0：準備三個免費帳號
+1. [GitHub](https://github.com)（你已經有，這份 repo 就是證明）
+2. [Cloudflare](https://dash.cloudflare.com)（免費方案即可）
+3. [ToSend](https://tosend.com)（寄信服務，有免費額度）
 
-## 📁 目錄結構
+另外需要一個**寄信專用網域**（一年約 NT$350，任何註冊商皆可；教學示範在 Cloudflare Registrar 購買）。
 
-```
-cf-tosend-autoresponder/
-├── docs/
-│   └── references/           # 拉下來的開源參考專案
-│       ├── plunk/            # useplunk/plunk (Email platform & MCP 參考)
-│       └── kolea/            # robconery/kolea (Cloudflare Email Sequence 參考)
-├── src/
-│   ├── index.ts              # Worker 入口 (Fetch 路由 + Scheduled Cron)
-│   ├── types.ts              # 型別定義
-│   ├── db.ts                 # D1 資料庫操作層 (Subscribers, Sequences, Logs)
-│   ├── tosend.ts             # ToSend REST API 客戶端
-│   ├── drip.ts               # Autoresponder 排程計算與變數替換引擎
-│   └── page.ts               # 極簡訂閱著陸頁與退訂結果頁 HTML
-├── schema.sql                # D1 資料庫結構
-├── wrangler.jsonc            # Cloudflare Workers 設定檔
-├── package.json
-└── tsconfig.json
-```
+### 步驟 1：建資料庫（僅首次，30 秒）
+Cloudflare Dashboard → 左側 **D1** → **Create database** → 命名 `autoresponder_db` → 把畫面上的 **database_id** 抄下來，貼進本 repo 的 `wrangler.jsonc`。
 
----
+### 步驟 2：一鍵部署
+1. GitHub repo → **Settings → Secrets and variables → Actions → New repository secret**，設三個：
+   - `CLOUDFLARE_API_TOKEN`：Cloudflare → My Profile → API Tokens → Create Token（權限選 Edit Cloudflare Workers）
+   - `CLOUDFLARE_ACCOUNT_ID`：Cloudflare Dashboard 右下角
+   - `HAOJI_SECRET`：**至少 32 字元的隨機字串**（用密碼管理器產生。⚠️ 請勿重設，重設會讓已存的 ToSend 金鑰失效）
+2. 上方 **Actions** → **Deploy** → **Run workflow**
+3. 等綠燈，你的網址就是 `https://<worker名稱>.<你的帳號>.workers.dev`
 
-## 🛠️ 快速安裝與部署
+### 步驟 3：完成設定
+1. 開 `https://你的網址/login` → 首次會引導你**建立管理密碼**
+2. 進後台「設定」頁：填網域、寄件人、ToSend API Key（按「驗證並儲存」會寄測試信，收到信才算完成）
+3. 到 ToSend Dashboard → Domains → 加入你的網域並設好 DKIM/SPF/MX（教學影片帶你做）
+4. 打開你的網址，用測試信箱訂閱——歡迎信應該 30 秒內抵達 🎉
 
-### 1. 建立 Cloudflare D1 資料庫
-```bash
-npx wrangler d1 create autoresponder_db
-```
-執行後終端機會印出 `database_id`，請將其貼入 `wrangler.jsonc` 的 `database_id` 欄位。
+## 每月成本（真的接近零）
 
-### 2. 初始化資料庫結構
-```bash
-# 遠端建立資料表並預載 3 封示範序列信件
-npx wrangler d1 execute autoresponder_db --remote --file=schema.sql
+| 項目 | 費用 |
+|---|---|
+| Cloudflare（系統本體） | 免費額度內（500 人名單綽綽有餘） |
+| ToSend（寄信） | 依用量，有免費額度 |
+| 你的網域 | 一年約 NT$350 |
 
-# 本地開發測試時執行：
-npx wrangler d1 execute autoresponder_db --local --file=schema.sql
-```
+> 查證日期 2026-11-05：Workers 免費 10 萬請求/天、D1 免費 5GB、Workers AI 免費 1 萬 Neurons/天。
 
-### 3. 設定環境 Secrets
-```bash
-# 填入你的 ToSend API Key (tsend_...)
-npx wrangler secret put TOSEND_API_KEY
+## 忘記密碼怎麼辦？
 
-# 填入一組自訂的 Token 供 AI Agent 調用管理 API
-npx wrangler secret put ADMIN_API_KEY
-```
+不用寫程式：Cloudflare Dashboard → D1 → `autoresponder_db` → 資料表 `settings` → 刪除 `admin_password_hash` 那一列 → 回到 `/login` 重新建立密碼。
 
-### 4. 部署上線
-```bash
-npx wrangler deploy
-```
+## ⚠️ 兩個紅線
 
----
+1. **本 repo 絕對不可設為 Public**——裡面沒有金鑰，但公開後任何人都能複製你的系統。
+2. **不要重設 `HAOJI_SECRET`**——已加密的 ToSend 金鑰會解不開。真的設錯了也沒關係：後台「設定」頁會提示，按「清除重設」再驗證一次就好。
 
-## 🤖 AI Agent 操作 API 說明
+## 常見問題
 
-所有管理 API 均需要帶上 Header：`Authorization: Bearer <ADMIN_API_KEY>`
+**Q：我要會寫程式嗎？**
+不用。部署是網頁按鈕，設定是中文表單。想改功能時，把 repo 丟給你的 AI 助手（它有 `AGENTS.md` 導讀）說人話就好。
 
-### 1. 讓 AI 新增或修改郵件序列範本
-* **端點**：`POST /api/admin/sequences`
-* **Payload 範例**：
-```json
-{
-  "step_number": 4,
-  "delay_hours": 120,
-  "subject": "第 5 天跟進：你的進度還順利嗎？",
-  "content_html": "<p>嗨 <strong>{{name}}</strong>，這是第 5 天的問候...</p>",
-  "is_active": 1
-}
-```
+**Q：我的名單在 ConvertKit，搬得過來嗎？**
+可以。ConvertKit 匯出 CSV → 後台「聯絡人」頁按「匯入 CSV」。
 
-### 2. 讓 AI 查詢名單狀態
-* **端點**：`GET /api/admin/subscribers`
-* **回傳**：包含訂閱者 Email、姓名、狀態（`active`、`unsubscribed`、`bounced`）、目前跟進步驟（`current_step`）與訂閱時間。
+**Q：寄信會被當垃圾信嗎？**
+你的寄信信用累積在自己的網域上，系統自動附一鍵退訂、自動標記退信。正常經營不濫發，規則在你身上。
 
-### 3. 讓 AI 手動觸發排程發信檢查
-* **端點**：`POST /api/admin/trigger-cron`
-* **回傳**：`{ "success": true, "sent_count": 3 }`（本次成功遞送的信件數量）。
+## 授權
 
----
-
-## 🔗 ToSend Webhook 設定
-
-在 ToSend 後台（Dash -> Webhooks）新增 Webhook：
-* **URL**：`https://你的worker網址.workers.dev/api/webhook/tosend`
-* **Events**：勾選 `bounce` 與 `complaint`。
-* 系統將會在收件人退信或投訴時，自動在 D1 將該名單標記為無效，防止影響發信聲譽。
+購買者永久使用，可自由修改、可商用；**不可整份轉售或公開散佈**。未來更新免費。
