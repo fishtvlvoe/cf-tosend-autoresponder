@@ -217,8 +217,6 @@ export function renderUnsubscribePage(opts: UnsubscribePageOptions): Response {
   });
 }
 
-/**
-
 import { adminConsoleHtml } from "./adminHtml";
 
 /**
