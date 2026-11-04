@@ -11,6 +11,10 @@ export default {
     const url = new URL(request.url);
     const dbService = new DatabaseService(env.DB);
 
+    if (url.pathname === '/favicon.ico') {
+      return new Response(null, { status: 204 });
+    }
+
     // 0. 後台管理員登入頁面
     if (url.pathname === '/login' && request.method === 'GET') {
       return renderLoginPage();
