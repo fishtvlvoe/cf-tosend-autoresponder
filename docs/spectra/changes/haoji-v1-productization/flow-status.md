@@ -2,7 +2,7 @@
 
 | 欄位 | 內容 |
 |---|---|
-| 目前步驟 | apply（實作階段，Phase 1 安全地基） |
+| 目前步驟 | apply（實作階段，Phase 2 settings 與設定頁） |
 | 上一個步驟 | propose + 金魚五關兩輪 review 已完成（規格書 Approved） |
 | 規格書 | docs/designs/newsletter-kit-v1-spec.md |
 | 下一步行動 | 依 tasks.md Phase 1 → 6 順序實作；任何代理接手先讀 proposal.md 與規格書 |
