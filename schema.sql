@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS subscribers (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     email TEXT UNIQUE NOT NULL,
     name TEXT DEFAULT '',
+    tags TEXT DEFAULT '一般訂閱', -- 標籤分類：VIP, 潛在客戶, 一般訂閱
     status TEXT DEFAULT 'active', -- active, unsubscribed, bounced, complained
     unsubscribe_token TEXT UNIQUE NOT NULL,
     current_step INTEGER DEFAULT 0, -- 目前已完成的序號步驟
@@ -17,6 +18,7 @@ CREATE TABLE IF NOT EXISTS subscribers (
 CREATE INDEX IF NOT EXISTS idx_subscribers_status ON subscribers(status);
 CREATE INDEX IF NOT EXISTS idx_subscribers_email ON subscribers(email);
 CREATE INDEX IF NOT EXISTS idx_subscribers_token ON subscribers(unsubscribe_token);
+CREATE INDEX IF NOT EXISTS idx_subscribers_tags ON subscribers(tags);
 
 -- 2. 自動化郵件序列 (Autoresponder Sequences)
 CREATE TABLE IF NOT EXISTS email_sequences (
@@ -31,17 +33,28 @@ CREATE TABLE IF NOT EXISTS email_sequences (
 
 CREATE INDEX IF NOT EXISTS idx_sequences_step ON email_sequences(step_number);
 
--- 3. 發信日誌
+-- 3. 電子報廣播信 (Campaign Broadcasts)
+CREATE TABLE IF NOT EXISTS campaigns (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    content_html TEXT NOT NULL,
+    target_type TEXT DEFAULT 'all', -- all, tag, manual
+    target_tag TEXT DEFAULT '',
+    sent_count INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 4. 發信日誌
 CREATE TABLE IF NOT EXISTS delivery_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     subscriber_id INTEGER NOT NULL,
-    sequence_id INTEGER NOT NULL,
+    sequence_id INTEGER DEFAULT 0,
     tosend_message_id TEXT,
     status TEXT DEFAULT 'sent', -- sent, failed
     error_message TEXT,
     sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(subscriber_id) REFERENCES subscribers(id),
-    FOREIGN KEY(sequence_id) REFERENCES email_sequences(id)
+    FOREIGN KEY(subscriber_id) REFERENCES subscribers(id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_delivery_logs_sub ON delivery_logs(subscriber_id);

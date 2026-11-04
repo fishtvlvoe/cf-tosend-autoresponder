@@ -1,0 +1,241 @@
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import Database from 'better-sqlite3';
+import { DatabaseService } from '../src/db';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import worker from '../src/index';
+
+function createMockD1Database(db: any): any {
+  return {
+    prepare(sql: string) {
+      let boundParams: any[] = [];
+      return {
+        bind(...params: any[]) {
+          boundParams = params;
+          return this;
+        },
+        async first<T = any>() {
+          const stmt = db.prepare(sql);
+          return (stmt.get(...boundParams) as T) || null;
+        },
+        async all<T = any>() {
+          const stmt = db.prepare(sql);
+          return { results: stmt.all(...boundParams) as T[] };
+        },
+        async run() {
+          const stmt = db.prepare(sql);
+          const info = stmt.run(...boundParams);
+          return { meta: { changes: info.changes, last_row_id: info.lastInsertRowid } };
+        },
+      };
+    },
+    async batch(statements: any[]) {
+      const results = [];
+      for (const s of statements) {
+        results.push(await s.run());
+      }
+      return results;
+    },
+  };
+}
+
+describe('Admin 控制台與 API 端點驗證 (Admin Endpoints)', () => {
+  let sqlite: any;
+  let mockD1: any;
+  let env: any;
+  let ctx: any;
+
+  beforeEach(() => {
+    sqlite = new Database(':memory:');
+    const schemaSql = readFileSync(join(__dirname, '../schema.sql'), 'utf-8');
+    sqlite.exec(schemaSql);
+    mockD1 = createMockD1Database(sqlite);
+    env = {
+      DB: mockD1,
+      APP_URL: 'https://test-worker.workers.dev',
+      ADMIN_API_KEY: 'secret-token-123',
+      TOSEND_API_KEY: 'test-tosend-key',
+      TOSEND_FROM_EMAIL: 'sender@example.com',
+      TOSEND_FROM_NAME: 'Test Sender',
+    };
+    ctx = {
+      waitUntil: vi.fn(),
+      passThroughOnException: vi.fn(),
+    };
+  });
+
+  it('未提供 Authorization Header 應回傳 401 Unauthorized', async () => {
+    const req = new Request('https://test-worker.workers.dev/api/admin/stats', {
+      method: 'GET',
+    });
+    const res = await worker.fetch(req, env, ctx);
+    expect(res.status).toBe(401);
+  });
+
+  it('提供正確 Authorization Header 時 GET /api/admin/stats 應回傳正確 D1 統計數據', async () => {
+    sqlite.prepare(`
+      INSERT INTO subscribers (email, status, unsubscribe_token, tags) 
+      VALUES 
+        ('user1@example.com', 'active', 'tok-1', 'bni,lead'),
+        ('user2@example.com', 'active', 'tok-2', 'vip'),
+        ('user3@example.com', 'unsubscribed', 'tok-3', '')
+    `).run();
+
+    const req = new Request('https://test-worker.workers.dev/api/admin/stats', {
+      headers: { Authorization: 'Bearer secret-token-123' },
+    });
+    const res = await worker.fetch(req, env, ctx);
+    expect(res.status).toBe(200);
+    const data = await res.json() as any;
+    expect(data.activeCount).toBe(2);
+    expect(data.unsubCount).toBe(1);
+    expect(data.sentCount).toBe(0);
+    expect(data.failedCount).toBe(0);
+  });
+
+  it('POST /api/admin/subscribers 能新增聯絡人並寫入 tags 到 D1', async () => {
+    const req = new Request('https://test-worker.workers.dev/api/admin/subscribers', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer secret-token-123',
+      },
+      body: JSON.stringify({
+        email: 'newbie@example.com',
+        name: 'Newbie User',
+        tags: 'bni,taipei',
+      }),
+    });
+    const res = await worker.fetch(req, env, ctx);
+    expect(res.status).toBe(200);
+    const data = await res.json() as any;
+    expect(data.success).toBe(true);
+
+    const row = sqlite.prepare('SELECT * FROM subscribers WHERE email = ?').get('newbie@example.com');
+    expect(row).toBeDefined();
+    expect(row.name).toBe('Newbie User');
+    expect(row.tags).toBe('bni,taipei');
+  });
+
+  it('POST /api/admin/sequences 能儲存自動跟進關卡排程並成功查詢', async () => {
+    const saveReq = new Request('https://test-worker.workers.dev/api/admin/sequences', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer secret-token-123',
+      },
+      body: JSON.stringify({
+        step_number: 1,
+        delay_hours: 0,
+        subject: '歡迎信',
+        content_html: '<p>歡迎！</p>',
+        is_active: 1,
+      }),
+    });
+    const saveRes = await worker.fetch(saveReq, env, ctx);
+    expect(saveRes.status).toBe(200);
+
+    const getReq = new Request('https://test-worker.workers.dev/api/admin/sequences', {
+      headers: { Authorization: 'Bearer secret-token-123' },
+    });
+    const getRes = await worker.fetch(getReq, env, ctx);
+    expect(getRes.status).toBe(200);
+    const getData = await getRes.json() as any;
+    expect(getData.sequences).toHaveLength(3);
+    const step1 = getData.sequences.find((s: any) => s.step_number === 1);
+    expect(step1.subject).toBe('歡迎信');
+    expect(step1.step_number).toBe(1);
+  });
+
+  it('POST /api/admin/campaigns/send 能將廣播信儲存至 campaigns 表並針對名單發送', async () => {
+    // 建立 1 個活躍訂閱者
+    sqlite.prepare(`
+      INSERT INTO subscribers (email, name, status, unsubscribe_token, tags) 
+      VALUES ('broadcast_target@example.com', 'Target User', 'active', 'tok-b1', 'newsletter')
+    `).run();
+
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({ id: 'tosend_msg_123' }),
+      json: async () => ({ id: 'tosend_msg_123' }),
+    });
+
+    try {
+      const req = new Request('https://test-worker.workers.dev/api/admin/campaigns/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer secret-token-123',
+        },
+        body: JSON.stringify({
+          name: '本週產品更新',
+          subject: '本週產品更新',
+          target_type: 'tag',
+          target_tag: 'newsletter',
+          content_html: '<p>Hi {{name}}, 這是更新內容。</p>',
+        }),
+      });
+
+      const res = await worker.fetch(req, env, ctx);
+      expect(res.status).toBe(200);
+      const data = await res.json() as any;
+      expect(data.success).toBe(true);
+      expect(data.sent_success).toBe(1);
+
+      const campaign = sqlite.prepare('SELECT * FROM campaigns WHERE subject = ?').get('本週產品更新');
+      expect(campaign).toBeDefined();
+      expect(campaign.sent_count).toBe(1);
+      expect(campaign.target_tag).toBe('newsletter');
+
+      const log = sqlite.prepare('SELECT * FROM delivery_logs WHERE subscriber_id = 1').get();
+      expect(log).toBeDefined();
+      expect(log.status).toBe('sent');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('POST /api/admin/send-direct 能對指定單一信箱執行個別發信並留下 D1 紀錄', async () => {
+    sqlite.prepare(`
+      INSERT INTO subscribers (id, email, name, status, unsubscribe_token) 
+      VALUES (99, 'single@example.com', 'Single Person', 'active', 'tok-single')
+    `).run();
+
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({ id: 'tosend_direct_1' }),
+      json: async () => ({ id: 'tosend_direct_1' }),
+    });
+
+    try {
+      const req = new Request('https://test-worker.workers.dev/api/admin/send-direct', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer secret-token-123',
+        },
+        body: JSON.stringify({
+          email: 'single@example.com',
+          name: 'Single Person',
+          subject: '專屬通知',
+          content: '<p>這是一封個別發送的郵件</p>',
+        }),
+      });
+
+      const res = await worker.fetch(req, env, ctx);
+      expect(res.status).toBe(200);
+      const data = await res.json() as any;
+      expect(data.success).toBe(true);
+
+      const log = sqlite.prepare('SELECT * FROM delivery_logs WHERE subscriber_id = 99').get();
+      expect(log).toBeDefined();
+      expect(log.status).toBe('sent');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});

@@ -3,7 +3,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>控制台 Demo - cf-tosend-autoresponder</title>
+  <title>控制台 - cf-tosend-autoresponder</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", sans-serif; }
@@ -22,7 +22,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
       <div>
         <div class="flex items-center gap-2">
           <h1 class="text-sm font-semibold text-stone-900">Email 行銷與自動發信系統</h1>
-          <span class="text-[11px] text-stone-400 font-mono">v2.0 Demo</span>
+          <span class="text-[11px] text-stone-400 font-mono">v2.0 完整實機版</span>
         </div>
         <p class="text-xs text-stone-500">Cloudflare Workers · D1 Database · ToSend REST API</p>
       </div>
@@ -32,7 +32,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
         <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
         <span>排程引擎：每小時自動檢查</span>
       </div>
-      <button onclick="triggerCronSimulation()" class="text-xs bg-stone-900 hover:bg-stone-800 text-white font-medium px-3.5 py-1.5 rounded transition">
+      <button onclick="triggerCronExecution()" id="btn-trigger-cron" class="text-xs bg-stone-900 hover:bg-stone-800 text-white font-medium px-3.5 py-1.5 rounded transition">
         執行單次排程派送
       </button>
       <button onclick="logoutAdmin()" class="text-xs bg-stone-100 hover:bg-stone-200 text-stone-600 hover:text-stone-900 font-medium px-3 py-1.5 rounded transition">
@@ -70,22 +70,22 @@ export const adminConsoleHtml = `<!DOCTYPE html>
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div class="bg-white p-4 rounded-xl border border-stone-200 shadow-xs">
           <div class="text-xs text-stone-400">有效聯絡人總數</div>
-          <div class="text-2xl font-bold font-mono text-stone-900 mt-1" id="dash-active">128</div>
+          <div class="text-2xl font-bold font-mono text-stone-900 mt-1" id="dash-active">--</div>
           <div class="text-[11px] text-emerald-700 mt-1">正常排程接收中</div>
         </div>
         <div class="bg-white p-4 rounded-xl border border-stone-200 shadow-xs">
           <div class="text-xs text-stone-400">ToSend 累計發信量</div>
-          <div class="text-2xl font-bold font-mono text-stone-900 mt-1" id="dash-sent">1,420</div>
+          <div class="text-2xl font-bold font-mono text-stone-900 mt-1" id="dash-sent">--</div>
           <div class="text-[11px] text-stone-500 mt-1">送達率 99.4%</div>
         </div>
         <div class="bg-white p-4 rounded-xl border border-stone-200 shadow-xs">
           <div class="text-xs text-stone-400">已退訂人數</div>
-          <div class="text-2xl font-bold font-mono text-stone-900 mt-1" id="dash-unsub">6</div>
+          <div class="text-2xl font-bold font-mono text-stone-900 mt-1" id="dash-unsub">--</div>
           <div class="text-[11px] text-stone-500 mt-1">合規退訂隔離</div>
         </div>
         <div class="bg-white p-4 rounded-xl border border-stone-200 shadow-xs">
           <div class="text-xs text-stone-400">發信失敗暫態</div>
-          <div class="text-2xl font-bold font-mono text-stone-900 mt-1" id="dash-failed">0</div>
+          <div class="text-2xl font-bold font-mono text-stone-900 mt-1" id="dash-failed">--</div>
           <div class="text-[11px] text-stone-500 mt-1">容錯 3 次重試</div>
         </div>
       </div>
@@ -93,14 +93,14 @@ export const adminConsoleHtml = `<!DOCTYPE html>
       <div class="bg-white border border-stone-200 rounded-xl p-6 shadow-xs">
         <div class="flex items-center justify-between pb-3 border-b border-stone-100 mb-4">
           <h2 class="text-sm font-bold text-stone-900">即時投遞日誌 (Delivery Logs)</h2>
-          <span class="text-xs text-stone-400">即時監控</span>
+          <button onclick="loadLogsData()" class="text-xs text-stone-500 hover:text-stone-900 transition font-mono">重新整理日誌</button>
         </div>
         <div class="overflow-x-auto text-xs">
           <table class="w-full text-left">
             <thead>
               <tr class="text-stone-400 border-b border-stone-100 pb-2">
                 <th class="py-2">收件人 Email</th>
-                <th class="py-2">類型</th>
+                <th class="py-2">步驟 / 類型</th>
                 <th class="py-2">信件主旨</th>
                 <th class="py-2">投遞狀態</th>
                 <th class="py-2 text-right">記錄時間</th>
@@ -108,25 +108,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
             </thead>
             <tbody id="logs-tbody" class="divide-y divide-stone-50 text-stone-700 font-mono">
               <tr>
-                <td class="py-2.5">lin.chen@example.com</td>
-                <td class="py-2.5"><span class="px-1.5 py-0.5 rounded text-[10px] bg-stone-100 text-stone-600">自動跟進</span></td>
-                <td class="py-2.5 font-sans">歡迎加入！這是你的第一份專屬精選指南</td>
-                <td class="py-2.5"><span class="px-2 py-0.5 rounded text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200">sent</span></td>
-                <td class="py-2.5 text-right text-stone-400">2026-11-04 22:50:11</td>
-              </tr>
-              <tr>
-                <td class="py-2.5">david.wang@example.com</td>
-                <td class="py-2.5"><span class="px-1.5 py-0.5 rounded text-[10px] bg-amber-50 text-amber-700">個別發信</span></td>
-                <td class="py-2.5 font-sans">關於你的客製化串接諮詢確認</td>
-                <td class="py-2.5"><span class="px-2 py-0.5 rounded text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200">sent</span></td>
-                <td class="py-2.5 text-right text-stone-400">2026-11-04 22:30:05</td>
-              </tr>
-              <tr>
-                <td class="py-2.5">sarah.tsai@example.com</td>
-                <td class="py-2.5"><span class="px-1.5 py-0.5 rounded text-[10px] bg-sky-50 text-sky-700">廣播群發</span></td>
-                <td class="py-2.5 font-sans">11 月份系統更新報告與精選案例</td>
-                <td class="py-2.5"><span class="px-2 py-0.5 rounded text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200">sent</span></td>
-                <td class="py-2.5 text-right text-stone-400">2026-11-04 21:15:40</td>
+                <td colspan="5" class="py-4 text-center text-stone-400">載入 D1 資料庫即時日誌中...</td>
               </tr>
             </tbody>
           </table>
@@ -140,16 +122,16 @@ export const adminConsoleHtml = `<!DOCTYPE html>
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-stone-100">
           <div>
             <h2 class="text-sm font-bold text-stone-900">聯絡人名單管理</h2>
-            <p class="text-xs text-stone-500 mt-0.5">檢視所有訂閱者、分類標籤，並可點擊右側進行個別發信</p>
+            <p class="text-xs text-stone-500 mt-0.5">直接自 Cloudflare D1 資料庫讀取名單，可點選「個別發信」即時派送</p>
           </div>
           <div class="flex items-center gap-3">
             <div class="flex items-center gap-2 text-xs">
               <span class="text-stone-500">標籤分類：</span>
               <select id="filter-tag" onchange="filterContactsByTag(this.value)" class="text-xs px-2.5 py-1.5 rounded border border-stone-300 bg-white focus:outline-none focus:border-stone-900">
-                <option value="all">全部標籤 (128 人)</option>
-                <option value="VIP">VIP 會員 (42 人)</option>
-                <option value="潛在客戶">潛在客戶 (56 人)</option>
-                <option value="一般訂閱">一般訂閱 (30 人)</option>
+                <option value="all">全部名單</option>
+                <option value="VIP">VIP 會員</option>
+                <option value="潛在客戶">潛在客戶</option>
+                <option value="一般訂閱">一般訂閱</option>
               </select>
             </div>
             <button onclick="promptNewSubscriber()" class="text-xs bg-stone-900 hover:bg-stone-800 text-white font-medium px-3 py-1.5 rounded transition">
@@ -171,51 +153,8 @@ export const adminConsoleHtml = `<!DOCTYPE html>
               </tr>
             </thead>
             <tbody id="contacts-tbody" class="divide-y divide-stone-50 text-stone-700">
-              <tr data-tag="VIP">
-                <td class="py-3 font-mono font-medium text-stone-900">alex.chen@example.com</td>
-                <td class="py-3">陳大明</td>
-                <td class="py-3"><span class="px-2 py-0.5 rounded text-[10px] font-medium bg-purple-50 text-purple-700 border border-purple-200">VIP</span></td>
-                <td class="py-3"><span class="px-2 py-0.5 rounded text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200">啟用中</span></td>
-                <td class="py-3 text-stone-400 font-mono">2026-11-01 10:12</td>
-                <td class="py-3 text-right">
-                  <button onclick="openDirectSendModal('alex.chen@example.com', '陳大明')" class="text-xs bg-stone-100 hover:bg-stone-200 text-stone-800 font-medium px-2.5 py-1 rounded transition">
-                    個別發信
-                  </button>
-                </td>
-              </tr>
-              <tr data-tag="潛在客戶">
-                <td class="py-3 font-mono font-medium text-stone-900">elena.wu@example.com</td>
-                <td class="py-3">吳敏芬</td>
-                <td class="py-3"><span class="px-2 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200">潛在客戶</span></td>
-                <td class="py-3"><span class="px-2 py-0.5 rounded text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200">啟用中</span></td>
-                <td class="py-3 text-stone-400 font-mono">2026-11-02 14:35</td>
-                <td class="py-3 text-right">
-                  <button onclick="openDirectSendModal('elena.wu@example.com', '吳敏芬')" class="text-xs bg-stone-100 hover:bg-stone-200 text-stone-800 font-medium px-2.5 py-1 rounded transition">
-                    個別發信
-                  </button>
-                </td>
-              </tr>
-              <tr data-tag="一般訂閱">
-                <td class="py-3 font-mono font-medium text-stone-900">kevin.liu@example.com</td>
-                <td class="py-3">劉建宏</td>
-                <td class="py-3"><span class="px-2 py-0.5 rounded text-[10px] font-medium bg-stone-100 text-stone-600 border border-stone-200">一般訂閱</span></td>
-                <td class="py-3"><span class="px-2 py-0.5 rounded text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200">啟用中</span></td>
-                <td class="py-3 text-stone-400 font-mono">2026-11-03 09:20</td>
-                <td class="py-3 text-right">
-                  <button onclick="openDirectSendModal('kevin.liu@example.com', '劉建宏')" class="text-xs bg-stone-100 hover:bg-stone-200 text-stone-800 font-medium px-2.5 py-1 rounded transition">
-                    個別發信
-                  </button>
-                </td>
-              </tr>
-              <tr data-tag="一般訂閱">
-                <td class="py-3 font-mono font-medium text-stone-400 line-through">oliver.lin@example.com</td>
-                <td class="py-3 text-stone-400">林冠宇</td>
-                <td class="py-3"><span class="px-2 py-0.5 rounded text-[10px] font-medium bg-stone-100 text-stone-400 border border-stone-200">一般訂閱</span></td>
-                <td class="py-3"><span class="px-2 py-0.5 rounded text-[10px] bg-rose-50 text-rose-700 border border-rose-200">已退訂</span></td>
-                <td class="py-3 text-stone-400 font-mono">2026-10-28 17:40</td>
-                <td class="py-3 text-right">
-                  <span class="text-xs text-stone-400">已退訂隔離</span>
-                </td>
+              <tr>
+                <td colspan="6" class="py-4 text-center text-stone-400">載入 D1 聯絡人名單中...</td>
               </tr>
             </tbody>
           </table>
@@ -229,13 +168,13 @@ export const adminConsoleHtml = `<!DOCTYPE html>
         <div class="flex items-center justify-between pb-3 border-b border-stone-100">
           <div>
             <h2 class="text-sm font-bold text-stone-900">建立電子報廣播信 (Campaign Broadcast)</h2>
-            <p class="text-xs text-stone-500 mt-0.5">選擇受眾名單或分類標籤，撰寫並一次性發送廣播信件</p>
+            <p class="text-xs text-stone-500 mt-0.5">選擇受眾名單或分類標籤，撰寫並透過 ToSend REST API 一次性發送廣播信件</p>
           </div>
           <div class="flex items-center gap-2">
             <button onclick="sendCampaignTestEmail()" class="text-xs bg-stone-100 hover:bg-stone-200 text-stone-700 font-medium px-3 py-1.5 rounded transition">
               發送單封測試信
             </button>
-            <button onclick="executeCampaignBroadcast()" class="text-xs bg-stone-900 hover:bg-stone-800 text-white font-medium px-4 py-1.5 rounded transition">
+            <button onclick="executeCampaignBroadcast()" id="btn-campaign-send" class="text-xs bg-stone-900 hover:bg-stone-800 text-white font-medium px-4 py-1.5 rounded transition">
               確認立即群發
             </button>
           </div>
@@ -244,12 +183,12 @@ export const adminConsoleHtml = `<!DOCTYPE html>
         <!-- 1. 選擇發送受眾對象 (Audience Selector) -->
         <div class="p-4 rounded-lg bg-stone-50 border border-stone-200 space-y-3">
           <label class="block text-xs font-semibold text-stone-900">第一步：選擇發信受眾對象</label>
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
             <label class="flex items-start gap-2 p-3 bg-white rounded border border-stone-300 cursor-pointer hover:border-stone-900 transition">
               <input type="radio" name="audience_type" value="all" checked onchange="toggleAudienceFilter(this.value)" class="mt-0.5" />
               <div>
                 <span class="font-medium text-stone-900 block">全部有效聯絡人</span>
-                <span class="text-[11px] text-stone-500">發送給所有啟用狀態的名單（共 128 人）</span>
+                <span class="text-[11px] text-stone-500">發送給 D1 資料庫中所有啟用狀態的名單</span>
               </div>
             </label>
             <label class="flex items-start gap-2 p-3 bg-white rounded border border-stone-300 cursor-pointer hover:border-stone-900 transition">
@@ -259,21 +198,14 @@ export const adminConsoleHtml = `<!DOCTYPE html>
                 <span class="text-[11px] text-stone-500">僅發送給特定標籤分類（例如 VIP 客戶）</span>
               </div>
             </label>
-            <label class="flex items-start gap-2 p-3 bg-white rounded border border-stone-300 cursor-pointer hover:border-stone-900 transition">
-              <input type="radio" name="audience_type" value="manual" onchange="toggleAudienceFilter(this.value)" class="mt-0.5" />
-              <div>
-                <span class="font-medium text-stone-900 block">手動指定勾選</span>
-                <span class="text-[11px] text-stone-500">在名單清單中逐一勾選個別對象</span>
-              </div>
-            </label>
           </div>
 
           <div id="audience-tag-box" class="hidden pt-2 border-t border-stone-200/60 flex items-center gap-3">
             <span class="text-xs text-stone-600">選擇要發送的標籤：</span>
             <select id="campaign-selected-tag" class="text-xs px-2.5 py-1.5 rounded border border-stone-300 bg-white focus:outline-none focus:border-stone-900">
-              <option value="VIP">VIP 會員（42 人）</option>
-              <option value="潛在客戶">潛在客戶（56 人）</option>
-              <option value="一般訂閱">一般訂閱（30 人）</option>
+              <option value="VIP">VIP 會員</option>
+              <option value="潛在客戶">潛在客戶</option>
+              <option value="一般訂閱">一般訂閱</option>
             </select>
           </div>
         </div>
@@ -367,21 +299,21 @@ export const adminConsoleHtml = `<!DOCTYPE html>
             <span class="font-mono font-bold text-stone-900">關卡 01</span>
             <span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">即時發送 (0h)</span>
           </div>
-          <div class="text-sm font-medium text-stone-900 truncate">歡迎加入：第一份指南與起步清單</div>
+          <div class="text-sm font-medium text-stone-900 truncate" id="step-title-1">歡迎加入：第一份指南與起步清單</div>
         </div>
         <div onclick="selectAutomationStep(2)" id="step-item-2" class="p-3.5 rounded-lg border border-stone-200 bg-stone-50 hover:bg-white cursor-pointer transition">
           <div class="flex items-center justify-between text-xs mb-1">
             <span class="font-mono font-bold text-stone-500">關卡 02</span>
             <span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-stone-100 text-stone-600 border border-stone-200">訂閱後 24 小時</span>
           </div>
-          <div class="text-sm font-medium text-stone-700 truncate">第 2 天跟進：核心觀念與最常見盲區</div>
+          <div class="text-sm font-medium text-stone-700 truncate" id="step-title-2">第 2 天跟進：核心觀念與最常見盲區</div>
         </div>
         <div onclick="selectAutomationStep(3)" id="step-item-3" class="p-3.5 rounded-lg border border-stone-200 bg-stone-50 hover:bg-white cursor-pointer transition">
           <div class="flex items-center justify-between text-xs mb-1">
             <span class="font-mono font-bold text-stone-500">關卡 03</span>
             <span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-stone-100 text-stone-600 border border-stone-200">訂閱後 72 小時</span>
           </div>
-          <div class="text-sm font-medium text-stone-700 truncate">第 4 天深度解析：實戰案例分享</div>
+          <div class="text-sm font-medium text-stone-700 truncate" id="step-title-3">第 4 天深度解析：實戰案例分享</div>
         </div>
       </aside>
 
@@ -389,13 +321,13 @@ export const adminConsoleHtml = `<!DOCTYPE html>
         <div class="flex items-center justify-between pb-3 border-b border-stone-100">
           <div>
             <h2 class="text-sm font-bold text-stone-900" id="auto-editor-title">編輯關卡 01：歡迎信件</h2>
-            <p class="text-xs text-stone-500 mt-0.5">新訂閱者註冊後，將依排程時間自動發送</p>
+            <p class="text-xs text-stone-500 mt-0.5">新訂閱者註冊後，將依排程時間由 Cloudflare Worker 自動派送</p>
           </div>
           <div class="flex items-center gap-2">
             <button onclick="sendAutoTestEmail()" class="text-xs bg-stone-100 hover:bg-stone-200 text-stone-700 font-medium px-3 py-1.5 rounded transition">
               發送單封測試信
             </button>
-            <button onclick="saveAutomationStep()" class="text-xs bg-stone-900 hover:bg-stone-800 text-white font-medium px-4 py-1.5 rounded transition">
+            <button onclick="saveAutomationStep()" id="btn-save-auto" class="text-xs bg-stone-900 hover:bg-stone-800 text-white font-medium px-4 py-1.5 rounded transition">
               儲存關卡設定
             </button>
           </div>
@@ -417,7 +349,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
 
         <div>
           <label class="block text-xs font-semibold text-stone-700 mb-1">信件主旨 (Subject)</label>
-          <input type="text" id="auto-input-subject" value="歡迎加入！這是你的第一份專屬精選指南" class="w-full px-3 py-2 border border-stone-300 rounded text-sm focus:outline-none focus:border-stone-900" />
+          <input type="text" id="auto-input-subject" value="" class="w-full px-3 py-2 border border-stone-300 rounded text-sm focus:outline-none focus:border-stone-900" />
         </div>
 
         <div class="flex-1 flex flex-col space-y-2">
@@ -467,13 +399,6 @@ export const adminConsoleHtml = `<!DOCTYPE html>
                 contenteditable="true" 
                 class="bg-white p-8 rounded-lg shadow-xs border border-stone-200 min-h-[300px] text-sm text-stone-800 leading-relaxed focus:outline-none"
               >
-                <p>嗨 <strong>{{name}}</strong>，</p>
-                <p>非常感謝你的訂閱！這是你在註冊後立即收到的第一份歡迎信。</p>
-                <p>在接下來的幾天裡，我會與你分享最實用的自動化技巧與精選案例。</p>
-                <p style="text-align: center; margin: 24px 0;">
-                  <a href="https://example.com/start" style="background-color: #1c1917; color: #ffffff; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600; display: inline-block;">立即開始閱讀指南</a>
-                </p>
-                <p>祝順心！</p>
               </div>
             </div>
             <textarea 
@@ -516,7 +441,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
         <button onclick="closeDirectSendModal()" class="px-3 py-1.5 rounded text-xs font-medium text-stone-600 hover:bg-stone-100 transition">
           取消
         </button>
-        <button onclick="submitDirectSend()" class="px-4 py-1.5 rounded text-xs font-medium bg-stone-900 hover:bg-stone-800 text-white transition">
+        <button onclick="submitDirectSend()" id="btn-submit-direct" class="px-4 py-1.5 rounded text-xs font-medium bg-stone-900 hover:bg-stone-800 text-white transition">
           確認送出
         </button>
       </div>
@@ -524,57 +449,209 @@ export const adminConsoleHtml = `<!DOCTYPE html>
   </div>
 
   <script>
-    // 頁籤切換
+    // 統一的 API Fetch 工具（自動附帶 Authorization）
+    async function apiFetch(url, options = {}) {
+      const headers = Object.assign({}, options.headers || {});
+      const token = localStorage.getItem('ADMIN_API_KEY');
+      if (token) {
+        headers['Authorization'] = 'Bearer ' + token;
+      }
+      return fetch(url, Object.assign({}, options, { headers }));
+    }
+
+    // 頁籤切換（解決 Tailwind hidden 與 display 衝擊問題）
     function switchTab(t) {
       const tabs = ['dashboard', 'contacts', 'campaigns', 'automations'];
       tabs.forEach(tabName => {
         const section = document.getElementById('tab-' + tabName);
         const btn = document.getElementById('tab-btn-' + tabName);
         if (tabName === t) {
-          section.style.display = (tabName === 'automations') ? 'grid' : 'block';
+          section.classList.remove('hidden');
           btn.className = 'tab-active py-3 px-1 border-b-2 text-sm transition';
         } else {
-          section.style.display = 'none';
+          section.classList.add('hidden');
           btn.className = 'tab-inactive py-3 px-1 border-b-2 text-sm transition';
         }
       });
+      if (t === 'dashboard') loadDashboardStats();
+      if (t === 'contacts') loadContactsData();
+      if (t === 'automations') loadAutomationsData();
     }
 
-    // 聯絡人標籤篩選
-    function filterContactsByTag(tag) {
-      const rows = document.querySelectorAll('#contacts-tbody tr');
-      rows.forEach(r => {
-        if (tag === 'all' || r.getAttribute('data-tag') === tag) {
-          r.style.display = '';
-        } else {
-          r.style.display = 'none';
+    // 1. 數據總覽 API 串接
+    async function loadDashboardStats() {
+      try {
+        const res = await apiFetch('/api/admin/stats');
+        if (res.ok) {
+          const s = await res.json();
+          document.getElementById('dash-active').innerText = s.activeCount ?? 0;
+          document.getElementById('dash-sent').innerText = s.sentCount ?? 0;
+          document.getElementById('dash-unsub').innerText = s.unsubCount ?? 0;
+          document.getElementById('dash-failed').innerText = s.failedCount ?? 0;
         }
-      });
+      } catch (err) {
+        console.error('[Stats] Failed:', err);
+      }
+      loadLogsData();
+    }
+
+    // 載入即時日誌
+    async function loadLogsData() {
+      const tbody = document.getElementById('logs-tbody');
+      try {
+        const res = await apiFetch('/api/admin/logs');
+        if (res.ok) {
+          const { logs } = await res.json();
+          if (!logs || logs.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-stone-400">目前 D1 資料庫尚無發信日誌</td></tr>';
+          } else {
+            tbody.innerHTML = logs.map(l =>
+              '<tr>' +
+                '<td class="py-2.5 font-mono">' + (l.subscriber_email || '--') + '</td>' +
+                '<td class="py-2.5">' + (l.sequence_id ? ('關卡 ' + (l.step_number || l.sequence_id)) : '個別/廣播信') + '</td>' +
+                '<td class="py-2.5 font-sans">' + (l.sequence_subject || '--') + '</td>' +
+                '<td class="py-2.5"><span class="px-2 py-0.5 rounded text-[10px] ' + (l.status === 'sent' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200') + '">' + l.status + '</span></td>' +
+                '<td class="py-2.5 text-right text-stone-400 font-mono">' + (l.sent_at || '--') + '</td>' +
+              '</tr>'
+            ).join('');
+          }
+        }
+      } catch (err) {
+        tbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-rose-500">無法連線載入日誌</td></tr>';
+      }
+    }
+
+    // 2. 聯絡人名單 API 串接
+    let allContactsList = [];
+    async function loadContactsData() {
+      const tbody = document.getElementById('contacts-tbody');
+      try {
+        const res = await apiFetch('/api/admin/subscribers');
+        if (res.ok) {
+          const { subscribers } = await res.json();
+          allContactsList = subscribers || [];
+          renderContactsTable(allContactsList);
+        }
+      } catch (err) {
+        tbody.innerHTML = '<tr><td colspan="6" class="py-4 text-center text-rose-500">無法連線載入名單</td></tr>';
+      }
+    }
+
+    function renderContactsTable(list) {
+      const tbody = document.getElementById('contacts-tbody');
+      if (!list || list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="py-4 text-center text-stone-400">目前 D1 資料庫尚無聯絡人名單，可從前台訂閱或點選右上方新增</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = list.map(sub => {
+        const tag = sub.tags || '一般訂閱';
+        const isUnsub = sub.status === 'unsubscribed';
+        return '<tr data-tag="' + tag + '">' +
+          '<td class="py-3 font-mono font-medium ' + (isUnsub ? 'text-stone-400 line-through' : 'text-stone-900') + '">' + sub.email + '</td>' +
+          '<td class="py-3">' + (sub.name || '--') + '</td>' +
+          '<td class="py-3"><span class="px-2 py-0.5 rounded text-[10px] font-medium bg-stone-100 text-stone-700 border border-stone-200">' + tag + '</span></td>' +
+          '<td class="py-3"><span class="px-2 py-0.5 rounded text-[10px] ' + (sub.status === 'active' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200') + '">' + (sub.status === 'active' ? '啟用中' : '已退訂') + '</span></td>' +
+          '<td class="py-3 text-stone-400 font-mono">' + (sub.created_at || '--') + '</td>' +
+          '<td class="py-3 text-right">' +
+            (isUnsub
+              ? '<span class="text-xs text-stone-400">已退訂隔離</span>'
+              : '<button onclick="openDirectSendModal(\'' + sub.email + '\', \'' + (sub.name || '') + '\')" class="text-xs bg-stone-100 hover:bg-stone-200 text-stone-800 font-medium px-2.5 py-1 rounded transition">個別發信</button>'
+            ) +
+          '</td>' +
+        '</tr>';
+      }).join('');
+    }
+
+    function filterContactsByTag(tag) {
+      if (tag === 'all') {
+        renderContactsTable(allContactsList);
+      } else {
+        const filtered = allContactsList.filter(s => (s.tags || '一般訂閱') === tag);
+        renderContactsTable(filtered);
+      }
+    }
+
+    // 手動新增聯絡人
+    async function promptNewSubscriber() {
+      const email = prompt('請輸入新聯絡人 Email：');
+      if (!email) return;
+      const name = prompt('請輸入稱呼 / 姓名（選填）：', '') || '';
+      const tags = prompt('請輸入分類標籤（例如 VIP、潛在客戶、一般訂閱）：', '一般訂閱') || '一般訂閱';
+
+      try {
+        const res = await apiFetch('/api/admin/subscribers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, name, tags })
+        });
+        const d = await res.json();
+        if (res.ok && d.success) {
+          alert('成功新增聯絡人至 D1 資料庫！');
+          loadContactsData();
+          loadDashboardStats();
+        } else {
+          alert('新增失敗：' + (d.error || '未知原因'));
+        }
+      } catch (err) {
+        alert('新增失敗：無法連線至 Worker');
+      }
     }
 
     // 個別發信 Modal
     let currentTargetEmail = '';
+    let currentTargetName = '';
     function openDirectSendModal(email, name) {
       currentTargetEmail = email;
-      document.getElementById('modal-recipient').innerText = name + ' <' + email + '>';
-      document.getElementById('modal-subject').value = '關於您的客製化需求回覆';
-      document.getElementById('modal-content').value = '嗨 ' + name + '，\n\n感謝您的來信，我們已確認您的需求...';
+      currentTargetName = name;
+      document.getElementById('modal-recipient').innerText = (name ? name + ' <' + email + '>' : email);
+      document.getElementById('modal-subject').value = '';
+      document.getElementById('modal-content').value = '嗨 ' + (name || '朋友') + '，\n\n';
       document.getElementById('direct-send-modal').classList.remove('hidden');
     }
     function closeDirectSendModal() {
       document.getElementById('direct-send-modal').classList.add('hidden');
     }
-    function submitDirectSend() {
-      const subj = document.getElementById('modal-subject').value;
-      if (!subj) {
-        alert('請填寫信件主旨！');
+    async function submitDirectSend() {
+      const subj = document.getElementById('modal-subject').value.trim();
+      const content = document.getElementById('modal-content').value.trim();
+      if (!subj || !content) {
+        alert('請填寫主旨與信件內容！');
         return;
       }
-      alert('已成功透過 ToSend REST API 個別發送郵件給：' + currentTargetEmail);
-      closeDirectSendModal();
+
+      const btn = document.getElementById('btn-submit-direct');
+      btn.disabled = true;
+      btn.innerText = '發送中...';
+
+      try {
+        const res = await apiFetch('/api/admin/send-direct', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: currentTargetEmail,
+            name: currentTargetName,
+            subject: subj,
+            content: '<p>' + content.replace(/\n/g, '</p><p>') + '</p>'
+          })
+        });
+        const d = await res.json();
+        if (res.ok && d.success) {
+          alert('信件已成功透過 ToSend API 送出！');
+          closeDirectSendModal();
+          loadDashboardStats();
+        } else {
+          alert('發送失敗：' + (d.error || '請檢查 Worker 是否配置 TOSEND_API_KEY'));
+        }
+      } catch (err) {
+        alert('發送失敗：連線錯誤');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = '確認送出';
+      }
     }
 
-    // 廣播群發受眾篩選
+    // 3. 廣播群發功能
     function toggleAudienceFilter(val) {
       const tagBox = document.getElementById('audience-tag-box');
       if (val === 'tag') {
@@ -584,27 +661,232 @@ export const adminConsoleHtml = `<!DOCTYPE html>
       }
     }
 
-    function executeCampaignBroadcast() {
+    async function executeCampaignBroadcast() {
       const aud = document.querySelector('input[name="audience_type"]:checked').value;
-      let targetDesc = '全部有效聯絡人 (128 人)';
-      if (aud === 'tag') {
-        const tag = document.getElementById('campaign-selected-tag').value;
-        targetDesc = '指定標籤群體：' + tag;
-      } else if (aud === 'manual') {
-        targetDesc = '手動勾選名單';
+      const tag = document.getElementById('campaign-selected-tag').value;
+      const name = document.getElementById('campaign-name').value.trim();
+      const subject = document.getElementById('campaign-subject').value.trim();
+      const visualEl = document.getElementById('campaign-visual-editor');
+      const htmlEl = document.getElementById('campaign-html-editor');
+      const content = (campaignMode === 'visual') ? visualEl.innerHTML : htmlEl.value;
+
+      if (!subject || !content) {
+        alert('請填寫廣播信主旨與正文內容！');
+        return;
       }
-      const subj = document.getElementById('campaign-subject').value;
-      if (confirm('確定要立即發送廣播信給【' + targetDesc + '】嗎？\n主旨：' + subj)) {
-        alert('廣播發送任務已啟動！系統將於背景透過 ToSend API 分批派發。');
+
+      const targetDesc = (aud === 'tag') ? ('指定標籤：' + tag) : '全部有效聯絡人';
+      if (!confirm('確定要立即透過 ToSend API 群發廣播信給【' + targetDesc + '】嗎？')) {
+        return;
+      }
+
+      const btn = document.getElementById('btn-campaign-send');
+      btn.disabled = true;
+      btn.innerText = '正在透過 ToSend 批次群發中...';
+
+      try {
+        const res = await apiFetch('/api/admin/campaigns/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name,
+            subject,
+            content_html: content,
+            target_type: aud,
+            target_tag: tag
+          })
+        });
+        const d = await res.json();
+        if (res.ok && d.success) {
+          alert('廣播發送完成！總發送受眾：' + d.total_targets + ' 人，成功：' + d.sent_success + ' 封，失敗：' + d.sent_failed + ' 封。');
+          loadDashboardStats();
+          switchTab('dashboard');
+        } else {
+          alert('群發失敗：' + (d.error || '未知原因'));
+        }
+      } catch (err) {
+        alert('群發連線失敗：請檢查伺服器');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = '確認立即群發';
       }
     }
 
-    function sendCampaignTestEmail() {
-      const email = prompt('請輸入接收測試信的信箱：', 'test@example.com');
-      if (email) alert('測試廣播信已發送至：' + email);
+    async function sendCampaignTestEmail() {
+      const email = prompt('請輸入接收測試信的信箱：');
+      if (!email) return;
+      const subj = '[測試信] ' + document.getElementById('campaign-subject').value;
+      const visualEl = document.getElementById('campaign-visual-editor');
+      const htmlEl = document.getElementById('campaign-html-editor');
+      const content = (campaignMode === 'visual') ? visualEl.innerHTML : htmlEl.value;
+
+      try {
+        const res = await apiFetch('/api/admin/send-direct', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, name: '管理員', subject: subj, content })
+        });
+        const d = await res.json();
+        if (res.ok && d.success) {
+          alert('測試廣播信已發送至：' + email);
+        } else {
+          alert('發送測試信失敗：' + (d.error || '請檢查金鑰'));
+        }
+      } catch (e) {
+        alert('發送測試信失敗');
+      }
     }
 
-    // 廣播信編輯器控制
+    // 4. 自動跟進排程 API 串接
+    let automationsDbList = {};
+    let activeAutoStep = 1;
+
+    async function loadAutomationsData() {
+      try {
+        const res = await apiFetch('/api/admin/sequences');
+        if (res.ok) {
+          const { sequences } = await res.json();
+          if (sequences && sequences.length > 0) {
+            sequences.forEach(seq => {
+              automationsDbList[seq.step_number] = seq;
+              const titleEl = document.getElementById('step-title-' + seq.step_number);
+              if (titleEl) titleEl.innerText = seq.subject;
+            });
+            renderAutoStepToEditor(activeAutoStep);
+          }
+        }
+      } catch (err) {
+        console.error('[Automations] Load failed:', err);
+      }
+    }
+
+    function renderAutoStepToEditor(stepNum) {
+      activeAutoStep = stepNum;
+      [1, 2, 3].forEach(s => {
+        const item = document.getElementById('step-item-' + s);
+        if (s === stepNum) {
+          item.className = 'p-3.5 rounded-lg border border-stone-900 bg-white shadow-xs cursor-pointer transition';
+        } else {
+          item.className = 'p-3.5 rounded-lg border border-stone-200 bg-stone-50 hover:bg-white cursor-pointer transition';
+        }
+      });
+
+      const d = automationsDbList[stepNum] || {
+        subject: '歡迎加入！這是你的第一份專屬精選指南',
+        delay_hours: 0,
+        is_active: 1,
+        content_html: '<p>嗨 <strong>{{name}}</strong>，</p><p>感謝你的訂閱！</p>'
+      };
+
+      document.getElementById('auto-editor-title').innerText = '編輯關卡 0' + stepNum + '：' + d.subject;
+      document.getElementById('auto-input-delay').value = d.delay_hours ?? 0;
+      document.getElementById('auto-select-active').value = (d.is_active ?? 1).toString();
+      document.getElementById('auto-input-subject').value = d.subject || '';
+      document.getElementById('auto-visual-editor').innerHTML = d.content_html || '';
+      document.getElementById('auto-html-editor').value = d.content_html || '';
+    }
+
+    function selectAutomationStep(stepNum) {
+      renderAutoStepToEditor(stepNum);
+    }
+
+    async function saveAutomationStep() {
+      const visualEl = document.getElementById('auto-visual-editor');
+      const htmlEl = document.getElementById('auto-html-editor');
+      const content = (autoEditorMode === 'visual') ? visualEl.innerHTML : htmlEl.value;
+      const delay = parseInt(document.getElementById('auto-input-delay').value, 10);
+      const subject = document.getElementById('auto-input-subject').value.trim();
+      const isActive = parseInt(document.getElementById('auto-select-active').value, 10);
+
+      if (!subject || !content) {
+        alert('請填寫信件主旨與內容！');
+        return;
+      }
+
+      const btn = document.getElementById('btn-save-auto');
+      btn.disabled = true;
+      btn.innerText = '儲存中...';
+
+      try {
+        const res = await apiFetch('/api/admin/sequences', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            step_number: activeAutoStep,
+            delay_hours: delay,
+            subject,
+            content_html: content,
+            is_active: isActive
+          })
+        });
+        const d = await res.json();
+        if (res.ok && d.success) {
+          alert('關卡 0' + activeAutoStep + ' 已成功寫入 Cloudflare D1 資料庫！重新整理將持續保存。');
+          loadAutomationsData();
+        } else {
+          alert('儲存失敗：' + (d.error || '未知原因'));
+        }
+      } catch (err) {
+        alert('儲存失敗：無法連線至 Worker');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = '儲存關卡設定';
+      }
+    }
+
+    async function sendAutoTestEmail() {
+      const email = prompt('請輸入接收測試信的信箱：');
+      if (!email) return;
+      const subj = '[關卡測試] ' + document.getElementById('auto-input-subject').value;
+      const visualEl = document.getElementById('auto-visual-editor');
+      const htmlEl = document.getElementById('auto-html-editor');
+      const content = (autoEditorMode === 'visual') ? visualEl.innerHTML : htmlEl.value;
+
+      try {
+        const res = await apiFetch('/api/admin/send-direct', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, name: '管理員', subject: subj, content })
+        });
+        const d = await res.json();
+        if (res.ok && d.success) {
+          alert('測試信已發送至：' + email);
+        } else {
+          alert('發送失敗：' + (d.error || '請檢查金鑰'));
+        }
+      } catch (e) {
+        alert('發送測試信失敗');
+      }
+    }
+
+    // 手動觸發排程派送
+    async function triggerCronExecution() {
+      const btn = document.getElementById('btn-trigger-cron');
+      btn.disabled = true;
+      btn.innerText = '檢查中...';
+      try {
+        const res = await apiFetch('/api/admin/trigger-cron', { method: 'POST' });
+        const d = await res.json();
+        if (res.ok && d.success) {
+          alert('排程檢查執行完畢！本次成功自動派發 ' + (d.sent_count ?? 0) + ' 封郵件。');
+          loadDashboardStats();
+        } else {
+          alert('排程觸發失敗：' + (d.error || '未知原因'));
+        }
+      } catch (err) {
+        alert('排程觸發連線失敗');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = '執行單次排程派送';
+      }
+    }
+
+    function logoutAdmin() {
+      localStorage.removeItem('ADMIN_API_KEY');
+      window.location.href = '/login';
+    }
+
+    // 編輯器控制：廣播信
     let campaignMode = 'visual';
     function switchCampaignEditorMode(mode) {
       campaignMode = mode;
@@ -669,79 +951,10 @@ export const adminConsoleHtml = `<!DOCTYPE html>
       document.execCommand('insertHTML', false, btnHtml);
     }
 
-    // 自動跟進排程關卡快取
-    const automationsCache = {
-      1: {
-        title: '編輯關卡 01：歡迎信件',
-        delay: 0,
-        active: '1',
-        subject: '歡迎加入！這是你的第一份專屬精選指南',
-        content: '<p>嗨 <strong>{{name}}</strong>，</p><p>非常感謝你的訂閱！這是你在註冊後立即收到的第一份歡迎信。</p><p>在接下來的幾天裡，我會與你分享最實用的自動化技巧與精選案例。</p><p style="text-align: center; margin: 24px 0;"><a href="https://example.com/start" style="background-color: #1c1917; color: #ffffff; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600; display: inline-block;">立即開始閱讀指南</a></p><p>祝順心！</p>'
-      },
-      2: {
-        title: '編輯關卡 02：第 2 天跟進信',
-        delay: 24,
-        active: '1',
-        subject: '第 2 天跟進：核心觀念與最常見盲區',
-        content: '<p>嗨 <strong>{{name}}</strong>，</p><p>距離你訂閱已經過了 24 小時。今天想跟你聊聊在進行郵件自動化時，最常見的 3 個盲點...</p><p style="text-align: center; margin: 24px 0;"><a href="https://example.com/case" style="background-color: #1c1917; color: #ffffff; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600; display: inline-block;">觀看案例解析</a></p><p>希望對你有幫助！</p>'
-      },
-      3: {
-        title: '編輯關卡 03：第 4 天深度解析',
-        delay: 72,
-        active: '1',
-        subject: '第 4 天深度解析：實戰案例分享',
-        content: '<p>嗨 <strong>{{name}}</strong>，</p><p>這是我們為你準備的深度實戰案例解析。透過這套流程，團隊省下了超過 80% 的手動溝通時間...</p><p>有任何問題隨時回覆這封信與我討論！</p>'
-      }
-    };
-
-    let activeAutoStep = 1;
-    function selectAutomationStep(stepNum) {
-      activeAutoStep = stepNum;
-      [1, 2, 3].forEach(s => {
-        const item = document.getElementById('step-item-' + s);
-        if (s === stepNum) {
-          item.className = 'p-3.5 rounded-lg border border-stone-900 bg-white shadow-xs cursor-pointer transition';
-        } else {
-          item.className = 'p-3.5 rounded-lg border border-stone-200 bg-stone-50 hover:bg-white cursor-pointer transition';
-        }
-      });
-
-      const d = automationsCache[stepNum];
-      if (d) {
-        document.getElementById('auto-editor-title').innerText = d.title;
-        document.getElementById('auto-input-delay').value = d.delay;
-        document.getElementById('auto-select-active').value = d.active;
-        document.getElementById('auto-input-subject').value = d.subject;
-        document.getElementById('auto-visual-editor').innerHTML = d.content;
-        document.getElementById('auto-html-editor').value = d.content;
-      }
-    }
-
-    function saveAutomationStep() {
-      const v = document.getElementById('auto-visual-editor').innerHTML;
-      automationsCache[activeAutoStep].content = v;
-      automationsCache[activeAutoStep].delay = parseInt(document.getElementById('auto-input-delay').value, 10);
-      automationsCache[activeAutoStep].subject = document.getElementById('auto-input-subject').value;
-      alert('關卡 ' + activeAutoStep + ' 設定已成功儲存！');
-    }
-
-    function sendAutoTestEmail() {
-      const email = prompt('請輸入接收測試信的信箱：', 'test@example.com');
-      if (email) alert('測試信已發送至：' + email);
-    }
-
-    function triggerCronSimulation() {
-      alert('排程派送檢查已執行完畢，目前無待發送的名單。');
-    }
-
-    function promptNewSubscriber() {
-      const email = prompt('請輸入新聯絡人 Email：');
-      if (email) {
-        alert('聯絡人 ' + email + ' 已建立！');
-      }
-    }
-
+    // 編輯器控制：自動跟進排程
+    let autoEditorMode = 'visual';
     function switchAutoEditorMode(mode) {
+      autoEditorMode = mode;
       const visualWrapper = document.getElementById('auto-visual-wrapper');
       const visualEl = document.getElementById('auto-visual-editor');
       const htmlEl = document.getElementById('auto-html-editor');
@@ -802,11 +1015,13 @@ export const adminConsoleHtml = `<!DOCTYPE html>
       const btnHtml = '<div style="text-align: center; margin: 24px 0;"><a href="' + url + '" target="_blank" style="background-color: #1c1917; color: #ffffff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600; display: inline-block;">' + txt + '</a></div><p></p>';
       document.execCommand('insertHTML', false, btnHtml);
     }
-    function logoutAdmin() {
-      localStorage.removeItem('ADMIN_API_KEY');
-      window.location.href = '/login';
-    }
+
+    // 頁面初始化：載入統計與各項數據
+    document.addEventListener('DOMContentLoaded', () => {
+      loadDashboardStats();
+    });
+    // 保險觸發
+    loadDashboardStats();
   </script>
 </body>
-</html>
-`;
+</html>`;

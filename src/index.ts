@@ -2,6 +2,7 @@ import { Env } from './types';
 import { DatabaseService } from './db';
 import { renderLandingPage, renderUnsubscribePage, renderAdminConsole, renderLoginPage } from './page';
 import { sendWelcomeEmailIfConfigured, runDripScheduler } from './drip';
+import { sendEmailViaToSend } from './tosend';
 
 export default {
   /**
@@ -171,10 +172,129 @@ export default {
         return Response.json({ success: true, message: `Sequence step ${body.step_number} saved` });
       }
 
-      // AI: 手動觸發一次排程檢查
+      // 5. 手動觸發一次排程檢查
       if (url.pathname === '/api/admin/trigger-cron' && request.method === 'POST') {
         const sentCount = await runDripScheduler(env, dbService);
         return Response.json({ success: true, sent_count: sentCount });
+      }
+
+      // 6. 後台個別寄信 (Direct Send)
+      if (url.pathname === '/api/admin/send-direct' && request.method === 'POST') {
+        const body = (await request.json()) as {
+          email: string;
+          name?: string;
+          subject: string;
+          content: string;
+        };
+
+        if (!body.email || !body.subject || !body.content) {
+          return Response.json({ error: '請提供收件者 Email、主旨與內容' }, { status: 400 });
+        }
+
+        const subRes = await dbService.upsertSubscriber(body.email, body.name);
+        const sendResult = await sendEmailViaToSend(env, {
+          toEmail: body.email,
+          toName: body.name,
+          subject: body.subject,
+          html: body.content,
+          unsubscribeUrl: `${env.APP_URL || ''}/unsubscribe?token=${subRes.subscriber.unsubscribe_token}`,
+        });
+
+        await dbService.recordDirectSendLog({
+          subscriberId: subRes.subscriber.id,
+          status: sendResult.ok ? 'sent' : 'failed',
+          messageId: sendResult.messageId,
+          errorMsg: sendResult.error,
+        });
+
+        return Response.json({
+          success: sendResult.ok,
+          messageId: sendResult.messageId,
+          error: sendResult.error,
+        });
+      }
+
+      // 7. 電子報廣播群發 (Campaign Broadcast)
+      if (url.pathname === '/api/admin/campaigns/send' && request.method === 'POST') {
+        const body = (await request.json()) as {
+          name: string;
+          subject: string;
+          content_html: string;
+          target_type: 'all' | 'tag' | 'manual';
+          target_tag?: string;
+          manual_emails?: string[];
+        };
+
+        if (!body.subject || !body.content_html) {
+          return Response.json({ error: '請提供信件主旨與正文內容' }, { status: 400 });
+        }
+
+        let recipients: any[] = [];
+        if (body.target_type === 'tag') {
+          recipients = await dbService.getActiveSubscribersByTag(body.target_tag);
+        } else {
+          recipients = await dbService.getActiveSubscribersByTag('all');
+        }
+
+        let sentSuccess = 0;
+        let sentFailed = 0;
+
+        for (const sub of recipients) {
+          const personalHtml = body.content_html
+            .replace(/\{\{name\}\}/g, sub.name || '')
+            .replace(/\{\{email\}\}/g, sub.email)
+            .replace(/\{\{unsubscribeUrl\}\}/g, `${env.APP_URL || ''}/unsubscribe?token=${sub.unsubscribe_token}`);
+
+          const result = await sendEmailViaToSend(env, {
+            toEmail: sub.email,
+            toName: sub.name,
+            subject: body.subject,
+            html: personalHtml,
+            unsubscribeUrl: `${env.APP_URL || ''}/unsubscribe?token=${sub.unsubscribe_token}`,
+          });
+
+          await dbService.recordDirectSendLog({
+            subscriberId: sub.id,
+            status: result.ok ? 'sent' : 'failed',
+            messageId: result.messageId,
+            errorMsg: result.error,
+          });
+
+          if (result.ok) sentSuccess++;
+          else sentFailed++;
+        }
+
+        await dbService.saveCampaign({
+          name: body.name || body.subject,
+          subject: body.subject,
+          content_html: body.content_html,
+          target_type: body.target_type || 'all',
+          target_tag: body.target_tag || '',
+          sent_count: sentSuccess,
+        });
+
+        return Response.json({
+          success: true,
+          total_targets: recipients.length,
+          sent_success: sentSuccess,
+          sent_failed: sentFailed,
+        });
+      }
+
+      // 8. 後台新增聯絡人
+      if (url.pathname === '/api/admin/subscribers' && request.method === 'POST') {
+        const body = (await request.json()) as {
+          email: string;
+          name?: string;
+          tags?: string;
+        };
+
+        if (!body.email || !body.email.includes('@')) {
+          return Response.json({ error: '請提供合法的 Email 地址' }, { status: 400 });
+        }
+
+        const { subscriber, isNew } = await dbService.upsertSubscriber(body.email, body.name, body.tags);
+        return Response.json({ success: true, subscriber, isNew });
       }
     }
 

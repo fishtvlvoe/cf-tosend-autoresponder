@@ -12,11 +12,23 @@ export interface Subscriber {
   id: number;
   email: string;
   name: string;
+  tags?: string;
   status: 'active' | 'unsubscribed' | 'bounced' | 'complained';
   unsubscribe_token: string;
   current_step: number;
   created_at: string;
   updated_at: string;
+}
+
+export interface Campaign {
+  id: number;
+  name: string;
+  subject: string;
+  content_html: string;
+  target_type: 'all' | 'tag' | 'manual';
+  target_tag?: string;
+  sent_count: number;
+  created_at?: string;
 }
 
 export interface EmailSequence {

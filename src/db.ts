@@ -6,9 +6,10 @@ export class DatabaseService {
   /**
    * 建立或重新啟用訂閱者
    */
-  async upsertSubscriber(email: string, name?: string): Promise<{ subscriber: Subscriber; isNew: boolean }> {
+  async upsertSubscriber(email: string, name?: string, tags?: string): Promise<{ subscriber: Subscriber; isNew: boolean }> {
     const cleanEmail = email.trim().toLowerCase();
     const cleanName = (name || '').trim();
+    const cleanTag = (tags || '一般訂閱').trim();
 
     // 先查詢既有記錄
     const existing = await this.db
@@ -24,16 +25,23 @@ export class DatabaseService {
           .run();
         existing.status = 'active';
       }
+      if (tags && tags !== existing.tags) {
+        await this.db
+          .prepare("UPDATE subscribers SET tags = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+          .bind(cleanTag, existing.id)
+          .run();
+        existing.tags = cleanTag;
+      }
       return { subscriber: existing, isNew: false };
     }
 
     const token = crypto.randomUUID();
     await this.db
       .prepare(`
-        INSERT INTO subscribers (email, name, unsubscribe_token, status, current_step)
-        VALUES (?, ?, ?, 'active', 0)
+        INSERT INTO subscribers (email, name, tags, unsubscribe_token, status, current_step)
+        VALUES (?, ?, ?, ?, 'active', 0)
       `)
-      .bind(cleanEmail, cleanName, token)
+      .bind(cleanEmail, cleanName, cleanTag, token)
       .run();
 
     const created = await this.db
@@ -216,5 +224,68 @@ export class DatabaseService {
         seq.is_active !== undefined ? seq.is_active : 1
       )
       .run();
+  }
+
+  /**
+   * 依標籤取得有效訂閱者名單
+   */
+  async getActiveSubscribersByTag(tag?: string): Promise<Subscriber[]> {
+    if (!tag || tag === 'all') {
+      const { results } = await this.db
+        .prepare("SELECT * FROM subscribers WHERE status = 'active' ORDER BY id DESC")
+        .all<Subscriber>();
+      return results;
+    }
+    const { results } = await this.db
+      .prepare("SELECT * FROM subscribers WHERE status = 'active' AND tags = ? ORDER BY id DESC")
+      .bind(tag)
+      .all<Subscriber>();
+    return results;
+  }
+
+  /**
+   * 記錄個別發信或廣播信日誌
+   */
+  async recordDirectSendLog(params: {
+    subscriberId: number;
+    status: 'sent' | 'failed';
+    messageId?: string;
+    errorMsg?: string;
+  }): Promise<void> {
+    await this.db
+      .prepare(`
+        INSERT INTO delivery_logs (subscriber_id, sequence_id, tosend_message_id, status, error_message)
+        VALUES (?, 0, ?, ?, ?)
+      `)
+      .bind(params.subscriberId, params.messageId || null, params.status, params.errorMsg || null)
+      .run();
+  }
+
+  /**
+   * 儲存廣播活動紀錄
+   */
+  async saveCampaign(campaign: {
+    name: string;
+    subject: string;
+    content_html: string;
+    target_type: string;
+    target_tag?: string;
+    sent_count: number;
+  }): Promise<number> {
+    const res = await this.db
+      .prepare(`
+        INSERT INTO campaigns (name, subject, content_html, target_type, target_tag, sent_count)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `)
+      .bind(
+        campaign.name,
+        campaign.subject,
+        campaign.content_html,
+        campaign.target_type,
+        campaign.target_tag || '',
+        campaign.sent_count
+      )
+      .run();
+    return res.meta.last_row_id as number;
   }
 }
