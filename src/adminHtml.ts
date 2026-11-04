@@ -136,16 +136,19 @@ export const adminConsoleHtml = `<!DOCTYPE html>
               <span class="text-stone-500">標籤分類：</span>
               <select id="filter-tag" onchange="filterContactsByTag(this.value)" class="text-xs px-2.5 py-1.5 rounded border border-stone-300 bg-white focus:outline-none focus:border-stone-900">
                 <option value="all">全部名單</option>
-                <option value="VIP">VIP 會員</option>
-                <option value="潛在客戶">潛在客戶</option>
-                <option value="一般訂閱">一般訂閱</option>
               </select>
             </div>
+            <button onclick="exportCsv()" class="text-xs px-3 py-1.5 rounded border border-stone-300 text-stone-700 hover:bg-stone-50 transition">匯出 CSV</button>
+            <label class="text-xs px-3 py-1.5 rounded border border-stone-300 text-stone-700 hover:bg-stone-50 transition cursor-pointer">
+              匯入 CSV
+              <input type="file" accept=".csv,text/csv" class="hidden" onchange="importCsvFile(this)" />
+            </label>
             <button onclick="promptNewSubscriber()" class="text-xs bg-stone-900 hover:bg-stone-800 text-white font-medium px-3 py-1.5 rounded transition">
               + 新增聯絡人
             </button>
           </div>
         </div>
+        <div id="import-result" class="hidden text-xs bg-stone-50 border border-stone-200 rounded p-3"></div>
 
         <div class="overflow-x-auto text-xs">
           <table class="w-full text-left">
@@ -728,33 +731,51 @@ export const adminConsoleHtml = `<!DOCTYPE html>
           const { subscribers } = await res.json();
           allContactsList = subscribers || [];
           renderContactsTable(allContactsList);
+          refreshTagFilter();
         }
       } catch (err) {
         tbody.innerHTML = '<tr><td colspan="6" class="py-4 text-center text-rose-500">無法連線載入名單</td></tr>';
       }
     }
 
+    // 從 /api/admin/tags 動態產生標籤篩選選單
+    async function refreshTagFilter() {
+      try {
+        const res = await apiFetch('/api/admin/tags');
+        if (!res.ok) return;
+        const { tags } = await res.json();
+        const sel = document.getElementById('filter-tag');
+        const current = sel.value;
+        sel.innerHTML = '<option value="all">全部名單</option>' +
+          (tags || []).map(t => '<option value="' + t.name + '">' + t.name + '（' + t.count + '）</option>').join('');
+        sel.value = current;
+      } catch (e) { console.error('[Tags] Failed:', e); }
+    }
+
     function renderContactsTable(list) {
       const tbody = document.getElementById('contacts-tbody');
       if (!list || list.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="py-4 text-center text-stone-400">目前 D1 資料庫尚無聯絡人名單，可從前台訂閱或點選右上方新增</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="py-4 text-center text-stone-400">目前 D1 資料庫尚無聯絡人名單，可從前台訂閱、匯入 CSV 或點選右上方新增</td></tr>';
         return;
       }
 
       tbody.innerHTML = list.map(sub => {
-        const tag = sub.tags || '一般訂閱';
-        const isUnsub = sub.status === 'unsubscribed';
-        return '<tr data-tag="' + tag + '">' +
+        const rawTags = (sub.tags || ';一般訂閱;').replace(/^;|;$/g, '');
+        const isUnsub = sub.status !== 'active';
+        return '<tr>' +
           '<td class="py-3 font-mono font-medium ' + (isUnsub ? 'text-stone-400 line-through' : 'text-stone-900') + '">' + sub.email + '</td>' +
           '<td class="py-3">' + (sub.name || '--') + '</td>' +
-          '<td class="py-3"><span class="px-2 py-0.5 rounded text-[10px] font-medium bg-stone-100 text-stone-700 border border-stone-200">' + tag + '</span></td>' +
-          '<td class="py-3"><span class="px-2 py-0.5 rounded text-[10px] ' + (sub.status === 'active' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200') + '">' + (sub.status === 'active' ? '啟用中' : '已退訂') + '</span></td>' +
+          '<td class="py-3">' + rawTags.split(';').filter(Boolean).map(t =>
+            '<span class="inline-block mr-1 mb-1 px-2 py-0.5 rounded text-[10px] font-medium bg-stone-100 text-stone-700 border border-stone-200">' + t + '</span>'
+          ).join('') + '</td>' +
+          '<td class="py-3"><span class="px-2 py-0.5 rounded text-[10px] ' + (sub.status === 'active' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200') + '">' + (sub.status === 'active' ? '啟用中' : sub.status === 'bounced' ? '已退信' : sub.status === 'deleted' ? '已刪除' : '已退訂') + '</span></td>' +
           '<td class="py-3 text-stone-400 font-mono">' + (sub.created_at || '--') + '</td>' +
-          '<td class="py-3 text-right">' +
-            (isUnsub
-              ? '<span class="text-xs text-stone-400">已退訂隔離</span>'
-              : '<button onclick="openDirectSendModal(\\'' + sub.email + '\\', \\'' + (sub.name || '') + '\\')" class="text-xs bg-stone-100 hover:bg-stone-200 text-stone-800 font-medium px-2.5 py-1 rounded transition">個別發信</button>'
-            ) +
+          '<td class="py-3 text-right whitespace-nowrap">' +
+            (sub.status === 'active'
+              ? '<button onclick="openDirectSendModal(\\'' + sub.email + '\\', \\'' + (sub.name || '') + '\\')" class="text-xs bg-stone-100 hover:bg-stone-200 text-stone-800 font-medium px-2 py-1 rounded transition">個別發信</button> '
+              : '') +
+            '<button onclick="editContact(' + sub.id + ')" class="text-xs px-2 py-1 rounded border border-stone-300 text-stone-600 hover:bg-stone-50 transition">編輯</button> ' +
+            '<button onclick="deleteContact(' + sub.id + ', \\'' + sub.email + '\\')" class="text-xs px-2 py-1 rounded border border-rose-200 text-rose-600 hover:bg-rose-50 transition">刪除</button>' +
           '</td>' +
         '</tr>';
       }).join('');
@@ -764,9 +785,68 @@ export const adminConsoleHtml = `<!DOCTYPE html>
       if (tag === 'all') {
         renderContactsTable(allContactsList);
       } else {
-        const filtered = allContactsList.filter(s => (s.tags || '一般訂閱') === tag);
+        // 正規化分號包裹格式：用分號邊界比對
+        const filtered = allContactsList.filter(s => (';' + (s.tags || '') + ';').includes(';' + tag + ';'));
         renderContactsTable(filtered);
       }
+    }
+
+    // 編輯聯絡人（名稱 + 標籤，分號分隔多標籤）
+    async function editContact(id) {
+      const sub = allContactsList.find(s => s.id === id);
+      if (!sub) return;
+      const name = prompt('稱呼 / 姓名：', sub.name || '');
+      if (name === null) return;
+      const tags = prompt('標籤（多個用分號分隔，如：VIP;BNI）：', (sub.tags || '').replace(/^;|;$/g, ''));
+      if (tags === null) return;
+      const res = await apiFetch('/api/admin/subscribers', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, name, tags }),
+      });
+      if (res.ok) { loadContactsData(); } else { alert('更新失敗'); }
+    }
+
+    async function deleteContact(id, email) {
+      if (!confirm('確定刪除 ' + email + ' 嗎？（發信紀錄會保留，僅從名單隱藏）')) return;
+      const res = await apiFetch('/api/admin/subscribers?id=' + id, { method: 'DELETE' });
+      if (res.ok) { loadContactsData(); } else { alert('刪除失敗'); }
+    }
+
+    // CSV 匯入（檔案 → POST /api/admin/import → 顯示結果明細）
+    async function importCsvFile(input) {
+      const file = input.files && input.files[0];
+      if (!file) return;
+      const box = document.getElementById('import-result');
+      box.classList.remove('hidden');
+      box.innerText = '匯入中：' + file.name + '...';
+      try {
+        const res = await apiFetch('/api/admin/import', {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/csv' },
+          body: file,
+        });
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          box.innerHTML = '<span class="text-rose-600">匯入失敗：' + (d.error || '未知原因') + '</span>';
+          return;
+        }
+        let html = '<div>匯入完成：共 ' + d.total + ' 列，成功 <b>' + d.succeeded + '</b>，失敗 <b>' + d.failed + '</b></div>';
+        if (d.errors && d.errors.length) {
+          html += '<ul class="mt-2 space-y-1 text-rose-600">' + d.errors.map(e =>
+            '<li>第 ' + e.row + ' 列（' + (e.email || '空') + '）：' + e.reason + '</li>'
+          ).join('') + '</ul>';
+        }
+        box.innerHTML = html;
+        loadContactsData();
+      } catch (e) {
+        box.innerHTML = '<span class="text-rose-600">匯入失敗：無法連線</span>';
+      }
+      input.value = '';
+    }
+
+    function exportCsv() {
+      window.open('/api/admin/export', '_blank');
     }
 
     // 手動新增聯絡人

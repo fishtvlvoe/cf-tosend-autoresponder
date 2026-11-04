@@ -4,6 +4,7 @@ import { renderLandingPage, renderUnsubscribePage, renderAdminConsole, renderLog
 import { sendWelcomeEmailIfConfigured, runDripScheduler } from './drip';
 import { sendEmailViaToSend } from './tosend';
 import { hashPassword, verifyPassword, newSessionToken, encryptSecret, decryptSecret } from './crypto';
+import { decodeCsvText, parseCsv, buildCsv } from './csv';
 
 const SESSION_MAX_AGE_SEC = 7 * 24 * 3600; // 滑動 7 天
 const SETUP_LOCK_MS = 10 * 60 * 1000; // setup-password 鎖定 10 分鐘
@@ -351,6 +352,85 @@ export default {
       if (url.pathname === '/api/admin/subscribers' && request.method === 'GET') {
         const list = await dbService.listSubscribers(100);
         return Response.json({ subscribers: list });
+      }
+
+      // 標籤清單（explode + 計數，即時計算）
+      if (url.pathname === '/api/admin/tags' && request.method === 'GET') {
+        const tags = await dbService.listTags();
+        return Response.json({ tags });
+      }
+
+      // 編輯聯絡人（部分更新；tags 覆蓋式正規化）
+      if (url.pathname === '/api/admin/subscribers' && request.method === 'PUT') {
+        const body = (await request.json().catch(() => ({}))) as {
+          id?: number; name?: string; tags?: string; status?: string;
+        };
+        if (!body.id) {
+          return Response.json({ error: '請提供聯絡人 id' }, { status: 400 });
+        }
+        const ok = await dbService.updateSubscriber(body.id, {
+          name: body.name, tags: body.tags, status: body.status,
+        });
+        if (!ok) {
+          return Response.json({ error: '找不到該聯絡人或無可更新欄位' }, { status: 404 });
+        }
+        return Response.json({ success: true });
+      }
+
+      // 刪除聯絡人（軟刪除，保留發信紀錄）
+      if (url.pathname === '/api/admin/subscribers' && request.method === 'DELETE') {
+        const id = Number(url.searchParams.get('id'));
+        if (!id) {
+          return Response.json({ error: '請提供聯絡人 id' }, { status: 400 });
+        }
+        await dbService.softDeleteSubscriber(id);
+        return Response.json({ success: true });
+      }
+
+      // CSV 匯入（text/csv；≤1MB、≤5000 列，逐列錯誤回報含列號）
+      if (url.pathname === '/api/admin/import' && request.method === 'POST') {
+        const contentType = request.headers.get('Content-Type') || '';
+        if (!contentType.includes('csv')) {
+          return Response.json({ error: '請以 text/csv 上傳' }, { status: 400 });
+        }
+        const buf = await request.arrayBuffer();
+        if (buf.byteLength > 1024 * 1024) {
+          return Response.json({ error: '檔案超過 1MB，請分批匯入' }, { status: 413 });
+        }
+        let text: string;
+        try {
+          text = decodeCsvText(buf);
+        } catch {
+          return Response.json({ error: '編碼錯誤：請用 Excel「另存新檔 → CSV UTF-8」' }, { status: 400 });
+        }
+        const parsed = parseCsv(text);
+        if (parsed.rows.length > 5000) {
+          return Response.json({ error: '單批上限 5,000 列，請分批匯入' }, { status: 400 });
+        }
+        let succeeded = 0;
+        for (const row of parsed.rows) {
+          await dbService.upsertSubscriber(row.email, row.name, row.tags);
+          succeeded++;
+        }
+        return Response.json({
+          success: true,
+          total: parsed.total,
+          succeeded,
+          failed: parsed.errors.length,
+          errors: parsed.errors,
+        });
+      }
+
+      // CSV 匯出（BOM + UTF-8）
+      if (url.pathname === '/api/admin/export' && request.method === 'GET') {
+        const all = await dbService.listSubscribers(100000);
+        const csv = buildCsv(all);
+        return new Response(csv, {
+          headers: {
+            'Content-Type': 'text/csv; charset=utf-8',
+            'Content-Disposition': 'attachment; filename="subscribers.csv"',
+          },
+        });
       }
 
       // 中台：取得儀表板數據指標

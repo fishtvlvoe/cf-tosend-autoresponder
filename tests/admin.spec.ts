@@ -422,3 +422,94 @@ describe('settings API 與設定檢查（Phase 2：中文設定頁後端）', ()
     expect((await res.json() as any).error).toBe('請先完成設定頁');
   });
 });
+
+describe('標籤與 CSV 匯入匯出（Phase 3）', () => {
+  const BASE = 'https://test-worker.workers.dev';
+  let sqlite: any, mockD1: any, env: any, ctx: any, cookie: string;
+
+  const auth = (path: string, init: any = {}) => new Request(BASE + path, {
+    ...init,
+    headers: { 'Content-Type': 'application/json', Cookie: cookie, ...(init.headers || {}) },
+  });
+
+  beforeEach(async () => {
+    sqlite = new Database(':memory:');
+    sqlite.exec(readFileSync(join(__dirname, '../schema.sql'), 'utf-8'));
+    mockD1 = createMockD1Database(sqlite);
+    env = { DB: mockD1, HAOJI_SECRET: 's', TOSEND_API_KEY: 'k', TOSEND_FROM_EMAIL: 'a@b.c', TOSEND_FROM_NAME: 'n' };
+    ctx = { waitUntil: vi.fn(), passThroughOnException: vi.fn() };
+    sqlite.prepare('INSERT INTO settings (key, value) VALUES (?, ?)')
+      .run('admin_password_hash', await hashPassword('admin-pass-123'));
+    const res = await worker.fetch(new Request(BASE + '/api/admin/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: 'admin-pass-123' }),
+    }), env, ctx);
+    cookie = res.headers.get('Set-Cookie')!.split(';')[0];
+    sqlite.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('onboarding_done', '1');
+  });
+
+  it('Gherkin 2：CSV 3 好 2 壞，row 號含標頭，重複匯入冪等', async () => {
+    const csv = 'email,name,tags\r\na@example.com,小明,VIP;BNI\r\nb@example.com,小華,一般訂閱\r\nbad-email,壞列,\r\nc@example.com,,\r\na@example.com,小明改,新標籤';
+    const run = (text: string) => worker.fetch(auth('/api/admin/import', {
+      method: 'POST', headers: { 'Content-Type': 'text/csv', Cookie: cookie }, body: text,
+    }), env, ctx);
+
+    let res = await run(csv);
+    expect(res.status).toBe(200);
+    let d = await res.json() as any;
+    expect(d.succeeded).toBe(3);
+    expect(d.failed).toBe(1);
+    expect(d.errors.map((e: any) => e.row)).toEqual([4]); // 含標頭列（壞列在第 4 列）
+    // 同檔重複 email 後列蓋前列
+    expect(sqlite.prepare("SELECT name FROM subscribers WHERE email='a@example.com'").get().name).toBe('小明改');
+
+    res = await run(csv);
+    d = await res.json() as any;
+    expect(sqlite.prepare('SELECT COUNT(*) n FROM subscribers').get().n).toBe(3); // 冪等
+  });
+
+  it('非 UTF-8 回 400 編碼錯誤；>1MB 回 413', async () => {
+    const big5 = new Uint8Array([0x61, 0x40, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2c, 0xc4, 0xe5]); // a@b.com,大(Big5)
+    let res = await worker.fetch(auth('/api/admin/import', {
+      method: 'POST', headers: { 'Content-Type': 'text/csv', Cookie: cookie }, body: big5,
+    }), env, ctx);
+    expect(res.status).toBe(400);
+
+    res = await worker.fetch(auth('/api/admin/import', {
+      method: 'POST', headers: { 'Content-Type': 'text/csv', Cookie: cookie }, body: new Uint8Array(1024 * 1024 + 1),
+    }), env, ctx);
+    expect(res.status).toBe(413);
+  });
+
+  it('匯出含 BOM 與五欄位；tags 群組計數正確', async () => {
+    sqlite.prepare("INSERT INTO subscribers (email,name,status,unsubscribe_token,tags) VALUES ('t@example.com','測','active','tok1',';VIP;BNI;'),('u@example.com','','active','tok2',';VIP;')").run();
+    const res = await worker.fetch(auth('/api/admin/export'), env, ctx);
+    expect(res.status).toBe(200);
+    const buf = new Uint8Array(await res.arrayBuffer());
+    expect([buf[0], buf[1], buf[2]]).toEqual([0xEF, 0xBB, 0xBF]); // UTF-8 BOM（text() 會剝除，故驗 bytes）
+    const text = new TextDecoder().decode(buf);
+    expect(text).toContain('email,name,tags,status,created_at');
+    expect(text).toContain('t@example.com,測,VIP;BNI');
+
+    const tags = await (await worker.fetch(auth('/api/admin/tags'), env, ctx)).json() as any;
+    const vip = tags.tags.find((t: any) => t.name === 'VIP');
+    expect(vip.count).toBe(2);
+  });
+
+  it('PUT 編輯正規化、DELETE 軟刪除且名單消失', async () => {
+    sqlite.prepare("INSERT INTO subscribers (email,name,status,unsubscribe_token,tags) VALUES ('p@example.com','舊','active','tok9',';一般訂閱;')").run();
+    let res = await worker.fetch(auth('/api/admin/subscribers', {
+      method: 'PUT', body: JSON.stringify({ id: 1, name: '新', tags: 'VIP' }),
+    }), env, ctx);
+    expect(res.status).toBe(200);
+    const row = sqlite.prepare('SELECT * FROM subscribers WHERE id = 1').get();
+    expect(row.tags).toBe(';VIP;');
+    expect(row.name).toBe('新');
+
+    res = await worker.fetch(auth('/api/admin/subscribers?id=1', { method: 'DELETE' }), env, ctx);
+    expect(res.status).toBe(200);
+    expect(sqlite.prepare("SELECT status FROM subscribers WHERE id = 1").get().status).toBe('deleted');
+    const list = await (await worker.fetch(auth('/api/admin/subscribers'), env, ctx)).json() as any;
+    expect(list.subscribers.find((s: any) => s.id === 1)).toBeUndefined();
+  });
+});
