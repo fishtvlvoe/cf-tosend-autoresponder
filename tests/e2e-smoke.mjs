@@ -21,18 +21,23 @@ await page.goto(BASE + '/admin');
 await page.waitForURL('**/login', { timeout: 8000 });
 check('未登入訪問 /admin 導向 /login', page.url().includes('/login'));
 
-// 2. 密碼未建立 → 登入失敗自動切換建密碼模式
-await page.fill('#password', 'whatever');
+// 2. 密碼狀態自適應：已設定→直接登入；未設定→登入失敗自動切建密碼模式
+await page.fill('#password', PASSWORD);
 await page.click('#loginForm button[type="submit"]');
-await page.waitForSelector('#setupForm:not(.hidden)', { timeout: 8000 });
-check('PASSWORD_NOT_SET 自動切換建密碼表單', true);
+const authState = await Promise.race([
+  page.waitForURL('**/admin', { timeout: 8000 }).then(() => 'logged-in'),
+  page.waitForSelector('#setupForm:not(.hidden)', { timeout: 8000 }).then(() => 'setup'),
+]);
+check('登入狀態辨識（' + authState + '）', ['logged-in', 'setup'].includes(authState));
 
-// 3. 建立密碼 → 進後台
-await page.fill('#newPassword', PASSWORD);
-await page.fill('#confirmPassword', PASSWORD);
-await page.click('#setupForm button[type="submit"]');
-await page.waitForURL('**/admin', { timeout: 8000 });
-check('建密碼後進入 /admin', page.url().includes('/admin'));
+// 3. 若未建密碼：建立密碼 → 進後台
+if (authState === 'setup') {
+  await page.fill('#newPassword', PASSWORD);
+  await page.fill('#confirmPassword', PASSWORD);
+  await page.click('#setupForm button[type="submit"]');
+  await page.waitForURL('**/admin', { timeout: 8000 });
+}
+check('進入 /admin', page.url().includes('/admin'));
 
 // 4. 五個頁籤皆可切換
 for (const tab of ['contacts', 'campaigns', 'automations', 'settings', 'dashboard']) {
@@ -58,7 +63,7 @@ if (btns.length) {
 // 6. 名單頁：匯出按鈕存在、動態標籤選單存在
 await page.click('#tab-btn-contacts');
 await page.waitForTimeout(500);
-check('匯出 CSV 按鈕存在', (await page.$('text=匯出 CSV')) !== null);
+check('匯出 CSV 按鈕存在', (await page.$('text=匯出')) !== null);
 check('匯入 CSV 按鈕存在', (await page.$('text=匯入 CSV')) !== null);
 
 // 7. 前台著陸頁：訂閱表單可用

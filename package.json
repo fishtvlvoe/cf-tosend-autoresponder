@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "wrangler dev",
     "test": "vitest run tests/",
+    "test:e2e": "wrangler d1 execute autoresponder_db --local --command \"DELETE FROM settings WHERE key='admin_password_hash'\" && node tests/e2e-smoke.mjs",
     "deploy": "wrangler deploy",
     "d1:init": "wrangler d1 execute autoresponder_db --remote --file=schema.sql",
     "d1:init:local": "wrangler d1 execute autoresponder_db --local --file=schema.sql"

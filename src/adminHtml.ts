@@ -10,66 +10,104 @@ export const adminConsoleHtml = `<!DOCTYPE html>
     .tab-active { border-color: #1c1917; color: #1c1917; font-weight: 600; }
     .tab-inactive { border-color: transparent; color: #78716c; }
     .tab-inactive:hover { color: #292524; }
+    /* 手機漢堡選單項目 */
+    .m-item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 11px 12px; border-radius: 10px; font-size: 14px; transition: background .15s; }
+    .m-active { background: #1c1917; color: #ffffff; font-weight: 600; }
+    .m-inactive { color: #44403c; }
+    .m-inactive:hover { background: #f5f5f4; }
   </style>
 </head>
 <body class="bg-[#fcfbf9] text-stone-800 antialiased min-h-screen flex flex-col">
-  <!-- 頂部導覽列 -->
-  <header class="bg-white border-b border-stone-200 sticky top-0 z-30 px-6 py-3 flex items-center justify-between">
-    <div class="flex items-center gap-3">
-      <div class="w-8 h-8 rounded bg-stone-900 text-white flex items-center justify-center font-mono font-bold text-xs">
-        CF
-      </div>
-      <div>
-        <div class="flex items-center gap-2">
-          <h1 class="text-sm font-semibold text-stone-900">Email 行銷與自動發信系統</h1>
-          <span class="text-[11px] text-stone-400 font-mono">v2.0 完整實機版</span>
+  <!-- 頂部導覽列（手機版直排堆疊，電腦版橫排） -->
+  <header class="bg-white border-b border-stone-200 sticky top-0 z-30 px-4 md:px-6 py-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <div class="flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="w-8 h-8 rounded bg-stone-900 text-white flex items-center justify-center font-mono font-bold text-xs shrink-0">CF</div>
+        <div class="min-w-0">
+          <div class="flex items-center gap-2">
+            <h1 class="text-sm font-semibold text-stone-900 truncate">Email 行銷與自動發信系統</h1>
+            <span class="hidden sm:inline text-[11px] text-stone-400 font-mono shrink-0">v2.0</span>
+          </div>
+          <p class="text-xs text-stone-500 truncate">Cloudflare Workers · D1 · ToSend</p>
         </div>
-        <p class="text-xs text-stone-500">Cloudflare Workers · D1 Database · ToSend REST API</p>
       </div>
+      <button onclick="toggleMobileMenu()" class="md:hidden p-2 -mr-2 rounded hover:bg-stone-100" aria-label="開啟選單">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 text-stone-700"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/></svg>
+      </button>
     </div>
-    <div class="flex items-center gap-3">
+    <div class="flex flex-wrap items-center gap-2">
       <div class="flex items-center gap-2 text-xs text-stone-600 bg-stone-50 px-3 py-1.5 rounded border border-stone-200">
-        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+        <span class="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
         <span>排程引擎：每小時自動檢查</span>
       </div>
-      <button onclick="triggerCronExecution()" id="btn-trigger-cron" class="text-xs bg-stone-900 hover:bg-stone-800 text-white font-medium px-3.5 py-1.5 rounded transition">
-        執行單次排程派送
+      <button onclick="triggerCronExecution()" id="btn-trigger-cron" class="text-xs bg-stone-900 hover:bg-stone-800 text-white font-medium px-3 py-1.5 rounded transition flex items-center gap-1.5">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"/></svg>
+        執行排程
       </button>
-      <button onclick="logoutAdmin()" class="text-xs bg-stone-100 hover:bg-stone-200 text-stone-600 hover:text-stone-900 font-medium px-3 py-1.5 rounded transition">
+      <button onclick="logoutAdmin()" class="text-xs bg-stone-100 hover:bg-stone-200 text-stone-600 hover:text-stone-900 font-medium px-3 py-1.5 rounded transition flex items-center gap-1.5">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l3 3m0 0l-3 3m3-3H2.25"/></svg>
         登出
       </button>
     </div>
   </header>
 
-  <main class="max-w-7xl w-full mx-auto px-6 py-6 flex-1 flex flex-col space-y-6">
-    <!-- 四大核心功能頁籤 -->
-    <div class="border-b border-stone-200 flex items-center justify-between">
-      <nav class="flex space-x-8 text-sm">
-        <button onclick="switchTab('dashboard')" id="tab-btn-dashboard" class="tab-active py-3 px-1 border-b-2 text-sm transition">
-          1. 數據總覽 (Dashboard)
-        </button>
-        <button onclick="switchTab('contacts')" id="tab-btn-contacts" class="tab-inactive py-3 px-1 border-b-2 text-sm transition">
-          2. 聯絡人名單 (Contacts)
-        </button>
-        <button onclick="switchTab('campaigns')" id="tab-btn-campaigns" class="tab-inactive py-3 px-1 border-b-2 text-sm transition">
-          3. 電子報廣播 (Campaigns)
-        </button>
-        <button onclick="switchTab('automations')" id="tab-btn-automations" class="tab-inactive py-3 px-1 border-b-2 text-sm transition">
-          4. 自動跟進排程 (Automations)
-        </button>
-        <button onclick="switchTab('settings')" id="tab-btn-settings" class="tab-inactive py-3 px-1 border-b-2 text-sm transition">
-          5. 設定 (Settings)
-        </button>
-      </nav>
-      <!-- 設定未完成提示橫幅（derived onboarding_done=0 時顯示，點擊切到設定頁籤） -->
-      <div id="onboarding-banner" class="hidden mb-4 bg-amber-50 border border-amber-200 text-amber-800 text-xs px-4 py-2.5 rounded-lg cursor-pointer" onclick="switchTab('settings')">
-        ⚠ 請先完成初始設定（網域、寄件人、ToSend 金鑰），完成前無法寄信。
+  <!-- 手機版漢堡選單抽屜（一級選單） -->
+  <div id="mobile-drawer" class="fixed inset-0 z-40 hidden md:hidden">
+    <div class="absolute inset-0 bg-stone-900/40" onclick="toggleMobileMenu()"></div>
+    <div class="absolute right-0 top-0 h-full w-64 max-w-[85vw] bg-white shadow-xl p-4 space-y-1 overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-stone-100 mb-3">
+        <span class="text-sm font-bold text-stone-900">選單</span>
+        <button onclick="toggleMobileMenu()" class="p-1 text-stone-400 hover:text-stone-700 text-xl leading-none">&times;</button>
       </div>
+      <button data-tab="dashboard" data-nav-style="menu" class="m-item m-active">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/></svg>
+        數據總覽
+      </button>
+      <button data-tab="contacts" data-nav-style="menu" class="m-item m-inactive">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/></svg>
+        聯絡人名單
+      </button>
+      <button data-tab="campaigns" data-nav-style="menu" class="m-item m-inactive">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"/></svg>
+        電子報廣播
+      </button>
+      <button data-tab="automations" data-nav-style="menu" class="m-item m-inactive">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        自動跟進排程
+      </button>
+      <button data-tab="settings" data-nav-style="menu" class="m-item m-inactive">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        設定
+      </button>
+      <div class="pt-3 mt-3 border-t border-stone-100">
+        <button onclick="switchTab('campaigns')" class="m-item bg-stone-900 text-white font-medium justify-center">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487z"/></svg>
+          撰寫新廣播信
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <main class="max-w-7xl w-full mx-auto px-4 md:px-6 py-6 flex-1 flex flex-col space-y-6">
+    <!-- 四大核心功能頁籤（電腦版；手機版收進漢堡選單） -->
+    <div class="border-b border-stone-200 flex items-center justify-between">
+      <nav class="hidden md:flex space-x-6 text-sm">
+        <button data-tab="dashboard" data-nav-style="tab" id="tab-btn-dashboard" class="tab-active py-3 px-1 border-b-2 text-sm transition">數據總覽</button>
+        <button data-tab="contacts" data-nav-style="tab" id="tab-btn-contacts" class="tab-inactive py-3 px-1 border-b-2 text-sm transition">聯絡人名單</button>
+        <button data-tab="campaigns" data-nav-style="tab" id="tab-btn-campaigns" class="tab-inactive py-3 px-1 border-b-2 text-sm transition">電子報廣播</button>
+        <button data-tab="automations" data-nav-style="tab" id="tab-btn-automations" class="tab-inactive py-3 px-1 border-b-2 text-sm transition">自動跟進排程</button>
+        <button data-tab="settings" data-nav-style="tab" id="tab-btn-settings" class="tab-inactive py-3 px-1 border-b-2 text-sm transition">設定</button>
+      </nav>
       <div id="tab-quick-action">
         <button onclick="switchTab('campaigns')" class="text-xs bg-stone-900 hover:bg-stone-800 text-white font-medium px-3 py-1.5 rounded transition">
           + 撰寫新廣播信
         </button>
       </div>
+    </div>
+
+    <!-- 設定未完成提示橫幅（derived onboarding_done=0 時顯示，點擊切到設定頁籤） -->
+    <div id="onboarding-banner" class="hidden bg-amber-50 border border-amber-200 text-amber-800 text-xs px-4 py-2.5 rounded-lg cursor-pointer" onclick="switchTab('settings')">
+      ⚠ 請先完成初始設定（網域、寄件人、ToSend 金鑰），完成前無法寄信。
     </div>
 
     <!-- 頁籤 1：數據總覽 (Dashboard) -->
@@ -102,7 +140,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
           <h2 class="text-sm font-bold text-stone-900">即時投遞日誌 (Delivery Logs)</h2>
           <button onclick="loadLogsData()" class="text-xs text-stone-500 hover:text-stone-900 transition font-mono">重新整理日誌</button>
         </div>
-        <div class="overflow-x-auto text-xs">
+        <div class="overflow-x-auto text-xs hidden md:block">
           <table class="w-full text-left">
             <thead>
               <tr class="text-stone-400 border-b border-stone-100 pb-2">
@@ -120,6 +158,10 @@ export const adminConsoleHtml = `<!DOCTYPE html>
             </tbody>
           </table>
         </div>
+        <!-- 手機版：日誌卡片列表 -->
+        <div id="logs-cards" class="md:hidden space-y-2">
+          <div class="py-4 text-center text-stone-400 text-sm">載入 D1 資料庫即時日誌中...</div>
+        </div>
       </div>
     </section>
 
@@ -131,26 +173,31 @@ export const adminConsoleHtml = `<!DOCTYPE html>
             <h2 class="text-sm font-bold text-stone-900">聯絡人名單管理</h2>
             <p class="text-xs text-stone-500 mt-0.5">直接自 Cloudflare D1 資料庫讀取名單，可點選「個別發信」即時派送</p>
           </div>
-          <div class="flex items-center gap-3">
+          <div class="flex flex-wrap items-center gap-2">
             <div class="flex items-center gap-2 text-xs">
               <span class="text-stone-500">標籤分類：</span>
               <select id="filter-tag" onchange="filterContactsByTag(this.value)" class="text-xs px-2.5 py-1.5 rounded border border-stone-300 bg-white focus:outline-none focus:border-stone-900">
                 <option value="all">全部名單</option>
               </select>
             </div>
-            <button onclick="exportCsv()" class="text-xs px-3 py-1.5 rounded border border-stone-300 text-stone-700 hover:bg-stone-50 transition">匯出 CSV</button>
-            <label class="text-xs px-3 py-1.5 rounded border border-stone-300 text-stone-700 hover:bg-stone-50 transition cursor-pointer">
+            <button onclick="exportCsv()" class="text-xs px-3 py-1.5 rounded border border-stone-300 text-stone-700 hover:bg-stone-50 transition flex items-center gap-1.5">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+              匯出
+            </button>
+            <label class="text-xs px-3 py-1.5 rounded border border-stone-300 text-stone-700 hover:bg-stone-50 transition cursor-pointer flex items-center gap-1.5">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-16.5-6L12 4.5m0 0l4.5 6M12 4.5v12"/></svg>
               匯入 CSV
               <input type="file" accept=".csv,text/csv" class="hidden" onchange="importCsvFile(this)" />
             </label>
-            <button onclick="promptNewSubscriber()" class="text-xs bg-stone-900 hover:bg-stone-800 text-white font-medium px-3 py-1.5 rounded transition">
-              + 新增聯絡人
+            <button onclick="promptNewSubscriber()" class="text-xs bg-stone-900 hover:bg-stone-800 text-white font-medium px-3 py-1.5 rounded transition flex items-center gap-1.5">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM3 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 019.374 21c-2.331 0-4.512-.645-6.374-1.766z"/></svg>
+              新增聯絡人
             </button>
           </div>
         </div>
         <div id="import-result" class="hidden text-xs bg-stone-50 border border-stone-200 rounded p-3"></div>
 
-        <div class="overflow-x-auto text-xs">
+        <div class="overflow-x-auto text-xs hidden md:block">
           <table class="w-full text-left">
             <thead>
               <tr class="text-stone-400 border-b border-stone-100 pb-2">
@@ -169,13 +216,17 @@ export const adminConsoleHtml = `<!DOCTYPE html>
             </tbody>
           </table>
         </div>
+        <!-- 手機版：聯絡人卡片列表 -->
+        <div id="contacts-cards" class="md:hidden space-y-2">
+          <div class="py-4 text-center text-stone-400 text-sm">載入 D1 聯絡人名單中...</div>
+        </div>
       </div>
     </section>
 
     <!-- 頁籤 3：電子報廣播 (Campaigns / 手動群發) -->
     <section id="tab-campaigns" class="hidden space-y-6">
       <div class="bg-white border border-stone-200 rounded-xl p-6 shadow-xs flex flex-col space-y-5">
-        <div class="flex items-center justify-between pb-3 border-b border-stone-100">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-stone-100">
           <div>
             <h2 class="text-sm font-bold text-stone-900">建立電子報廣播信 (Campaign Broadcast)</h2>
             <p class="text-xs text-stone-500 mt-0.5">選擇受眾名單或分類標籤，撰寫並透過 ToSend REST API 一次性發送廣播信件</p>
@@ -234,7 +285,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
 
         <!-- 3. 視覺化 Email 編輯器 -->
         <div class="flex-1 flex flex-col space-y-2">
-          <div class="flex items-center justify-between">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <label class="text-xs font-semibold text-stone-700">廣播信正文排版</label>
             <div class="flex items-center gap-3">
               <div class="flex items-center gap-1 bg-stone-100 p-0.5 rounded border border-stone-200 text-xs">
@@ -328,7 +379,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
       </aside>
 
       <div class="lg:col-span-8 bg-white border border-stone-200 rounded-xl p-6 shadow-xs flex flex-col space-y-5">
-        <div class="flex items-center justify-between pb-3 border-b border-stone-100">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-stone-100">
           <div>
             <h2 class="text-sm font-bold text-stone-900" id="auto-editor-title">編輯關卡 01：歡迎信件</h2>
             <p class="text-xs text-stone-500 mt-0.5">新訂閱者註冊後，將依排程時間由 Cloudflare Worker 自動派送</p>
@@ -363,7 +414,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
         </div>
 
         <div class="flex-1 flex flex-col space-y-2">
-          <div class="flex items-center justify-between">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <label class="text-xs font-semibold text-stone-700">關卡正文排版</label>
             <div class="flex items-center gap-3">
               <div class="flex items-center gap-1 bg-stone-100 p-0.5 rounded border border-stone-200 text-xs">
@@ -460,7 +511,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
           <p id="key-status" class="text-[11px] mt-1 hidden"></p>
           <p class="text-[11px] text-stone-400 mt-1">金鑰以 AES-256 加密存放；按下「驗證並儲存」會先寄測試信到上方信箱，成功才寫入。</p>
         </div>
-        <div class="flex gap-2">
+        <div class="flex flex-wrap gap-2">
           <button onclick="saveSettings(['tosend_from_name','tosend_from_email'])" class="text-xs bg-stone-900 hover:bg-stone-800 text-white font-medium px-4 py-1.5 rounded transition">儲存寄件人</button>
           <button onclick="verifyAndSaveTosend()" id="btn-verify-tosend" class="text-xs bg-emerald-700 hover:bg-emerald-800 text-white font-medium px-4 py-1.5 rounded transition">驗證並儲存金鑰</button>
         </div>
@@ -530,24 +581,39 @@ export const adminConsoleHtml = `<!DOCTYPE html>
       return res;
     }
 
-    // 頁籤切換（解決 Tailwind hidden 與 display 衝擊問題）
-    function switchTab(t) {
-      const tabs = ['dashboard', 'contacts', 'campaigns', 'automations', 'settings'];
+    // 頁籤切換（桌面頁籤與手機漢堡選單共用 data-tab 標記）
+    function switchTab(t) {      const tabs = ['dashboard', 'contacts', 'campaigns', 'automations', 'settings'];
       tabs.forEach(tabName => {
         const section = document.getElementById('tab-' + tabName);
-        const btn = document.getElementById('tab-btn-' + tabName);
         if (tabName === t) {
           section.classList.remove('hidden');
-          btn.className = 'tab-active py-3 px-1 border-b-2 text-sm transition';
         } else {
           section.classList.add('hidden');
-          btn.className = 'tab-inactive py-3 px-1 border-b-2 text-sm transition';
         }
       });
+      document.querySelectorAll('[data-tab]').forEach(btn => {
+        const isTarget = btn.getAttribute('data-tab') === t;
+        if (btn.getAttribute('data-nav-style') === 'tab') {
+          btn.classList.toggle('tab-active', isTarget);
+          btn.classList.toggle('tab-inactive', !isTarget);
+        } else {
+          btn.classList.toggle('m-active', isTarget);
+          btn.classList.toggle('m-inactive', !isTarget);
+        }
+      });
+      closeMobileMenu();
       if (t === 'dashboard') loadDashboardStats();
       if (t === 'contacts') loadContactsData();
       if (t === 'automations') loadAutomationsData();
       if (t === 'settings') loadSettingsData();
+    }
+
+    // 手機漢堡選單開關
+    function toggleMobileMenu() {
+      document.getElementById('mobile-drawer').classList.toggle('hidden');
+    }
+    function closeMobileMenu() {
+      document.getElementById('mobile-drawer').classList.add('hidden');
     }
 
 
@@ -698,12 +764,14 @@ export const adminConsoleHtml = `<!DOCTYPE html>
     // 載入即時日誌
     async function loadLogsData() {
       const tbody = document.getElementById('logs-tbody');
+      const cardsEl = document.getElementById('logs-cards');
       try {
         const res = await apiFetch('/api/admin/logs');
         if (res.ok) {
           const { logs } = await res.json();
           if (!logs || logs.length === 0) {
             tbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-stone-400">目前 D1 資料庫尚無發信日誌</td></tr>';
+            cardsEl.innerHTML = '<div class="py-4 text-center text-stone-400 text-sm">目前 D1 資料庫尚無發信日誌</div>';
           } else {
             tbody.innerHTML = logs.map(l =>
               '<tr>' +
@@ -714,10 +782,22 @@ export const adminConsoleHtml = `<!DOCTYPE html>
                 '<td class="py-2.5 text-right text-stone-400 font-mono">' + (l.sent_at || '--') + '</td>' +
               '</tr>'
             ).join('');
+            // 手機版卡片
+            cardsEl.innerHTML = logs.map(l =>
+              '<div class="bg-stone-50 border border-stone-200 rounded-lg p-3 space-y-1.5">' +
+                '<div class="flex items-start justify-between gap-2">' +
+                  '<div class="font-mono text-sm font-medium text-stone-900 break-all min-w-0">' + (l.subscriber_email || '--') + '</div>' +
+                  '<span class="px-2 py-0.5 rounded text-[11px] shrink-0 ' + (l.status === 'sent' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700') + '">' + l.status + '</span>' +
+                '</div>' +
+                '<div class="text-sm text-stone-700">' + (l.sequence_subject || '--') + '</div>' +
+                '<div class="text-xs text-stone-400">' + (l.sequence_id ? ('關卡 ' + (l.step_number || l.sequence_id)) : '個別/廣播信') + ' · ' + (l.sent_at || '--') + '</div>' +
+              '</div>'
+            ).join('');
           }
         }
       } catch (err) {
         tbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-rose-500">無法連線載入日誌</td></tr>';
+        cardsEl.innerHTML = '<div class="py-4 text-center text-rose-500 text-sm">無法連線載入日誌</div>';
       }
     }
 
@@ -754,30 +834,51 @@ export const adminConsoleHtml = `<!DOCTYPE html>
 
     function renderContactsTable(list) {
       const tbody = document.getElementById('contacts-tbody');
+      const cardsEl = document.getElementById('contacts-cards');
       if (!list || list.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" class="py-4 text-center text-stone-400">目前 D1 資料庫尚無聯絡人名單，可從前台訂閱、匯入 CSV 或點選右上方新增</td></tr>';
+        cardsEl.innerHTML = '<div class="py-4 text-center text-stone-400 text-sm">目前尚無聯絡人名單<br>可從前台訂閱、匯入 CSV 或點選「新增聯絡人」</div>';
         return;
       }
 
+      const statusBadge = (sub) => '<span class="px-2 py-0.5 rounded text-[10px] ' + (sub.status === 'active' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200') + '">' + (sub.status === 'active' ? '啟用中' : sub.status === 'bounced' ? '已退信' : sub.status === 'deleted' ? '已刪除' : '已退訂') + '</span>';
+      const tagsHtml = (sub) => (sub.tags || ';一般訂閱;').replace(/^;|;$/g, '').split(';').filter(Boolean).map(t =>
+        '<span class="inline-block mr-1 mb-1 px-2 py-0.5 rounded text-[10px] font-medium bg-stone-100 text-stone-700 border border-stone-200">' + t + '</span>'
+      ).join('');
+      const actionBtns = (sub) =>
+        (sub.status === 'active'
+          ? '<button onclick="openDirectSendModal(\\'' + sub.email + '\\', \\'' + (sub.name || '') + '\\')" class="text-xs bg-stone-900 hover:bg-stone-800 text-white font-medium px-2.5 py-1.5 rounded transition">個別發信</button> '
+          : '') +
+        '<button onclick="editContact(' + sub.id + ')" class="text-xs px-2.5 py-1.5 rounded border border-stone-300 text-stone-600 hover:bg-stone-50 transition">編輯</button> ' +
+        '<button onclick="deleteContact(' + sub.id + ', \\'' + sub.email + '\\')" class="text-xs px-2.5 py-1.5 rounded border border-rose-200 text-rose-600 hover:bg-rose-50 transition">刪除</button>';
+
+      // 電腦版表格
       tbody.innerHTML = list.map(sub => {
-        const rawTags = (sub.tags || ';一般訂閱;').replace(/^;|;$/g, '');
         const isUnsub = sub.status !== 'active';
         return '<tr>' +
           '<td class="py-3 font-mono font-medium ' + (isUnsub ? 'text-stone-400 line-through' : 'text-stone-900') + '">' + sub.email + '</td>' +
           '<td class="py-3">' + (sub.name || '--') + '</td>' +
-          '<td class="py-3">' + rawTags.split(';').filter(Boolean).map(t =>
-            '<span class="inline-block mr-1 mb-1 px-2 py-0.5 rounded text-[10px] font-medium bg-stone-100 text-stone-700 border border-stone-200">' + t + '</span>'
-          ).join('') + '</td>' +
-          '<td class="py-3"><span class="px-2 py-0.5 rounded text-[10px] ' + (sub.status === 'active' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200') + '">' + (sub.status === 'active' ? '啟用中' : sub.status === 'bounced' ? '已退信' : sub.status === 'deleted' ? '已刪除' : '已退訂') + '</span></td>' +
+          '<td class="py-3">' + tagsHtml(sub) + '</td>' +
+          '<td class="py-3">' + statusBadge(sub) + '</td>' +
           '<td class="py-3 text-stone-400 font-mono">' + (sub.created_at || '--') + '</td>' +
-          '<td class="py-3 text-right whitespace-nowrap">' +
-            (sub.status === 'active'
-              ? '<button onclick="openDirectSendModal(\\'' + sub.email + '\\', \\'' + (sub.name || '') + '\\')" class="text-xs bg-stone-100 hover:bg-stone-200 text-stone-800 font-medium px-2 py-1 rounded transition">個別發信</button> '
-              : '') +
-            '<button onclick="editContact(' + sub.id + ')" class="text-xs px-2 py-1 rounded border border-stone-300 text-stone-600 hover:bg-stone-50 transition">編輯</button> ' +
-            '<button onclick="deleteContact(' + sub.id + ', \\'' + sub.email + '\\')" class="text-xs px-2 py-1 rounded border border-rose-200 text-rose-600 hover:bg-rose-50 transition">刪除</button>' +
-          '</td>' +
+          '<td class="py-3 text-right whitespace-nowrap">' + actionBtns(sub) + '</td>' +
         '</tr>';
+      }).join('');
+
+      // 手機版卡片
+      cardsEl.innerHTML = list.map(sub => {
+        const isUnsub = sub.status !== 'active';
+        return '<div class="bg-white border border-stone-200 rounded-lg p-3 space-y-2">' +
+          '<div class="flex items-start justify-between gap-2">' +
+            '<div class="min-w-0">' +
+              '<div class="font-mono text-sm font-medium break-all ' + (isUnsub ? 'text-stone-400 line-through' : 'text-stone-900') + '">' + sub.email + '</div>' +
+              '<div class="text-xs text-stone-500 mt-0.5">' + (sub.name || '（未命名）') + ' · 訂閱於 ' + (sub.created_at || '--') + '</div>' +
+            '</div>' +
+            statusBadge(sub) +
+          '</div>' +
+          '<div>' + tagsHtml(sub) + '</div>' +
+          '<div class="flex flex-wrap gap-2 pt-2 border-t border-stone-100">' + actionBtns(sub) + '</div>' +
+        '</div>';
       }).join('');
     }
 
@@ -1295,6 +1396,10 @@ export const adminConsoleHtml = `<!DOCTYPE html>
 
     // 頁面初始化：載入統計與各項數據
     document.addEventListener('DOMContentLoaded', () => {
+      // 綁定所有 data-tab 導航按鈕（桌面頁籤＋手機漢堡選單）
+      document.querySelectorAll('[data-tab]').forEach(btn => {
+        btn.addEventListener('click', () => switchTab(btn.getAttribute('data-tab')));
+      });
       loadDashboardStats();
     });
     // 保險觸發
