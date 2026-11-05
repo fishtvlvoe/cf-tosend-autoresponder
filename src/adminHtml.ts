@@ -267,7 +267,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
             <thead>
               <tr class="text-stone-400 border-b border-stone-100 pb-2">
                 <th class="py-2">Email</th>
-                <th class="py-2">稱呼 / 姓名</th>
+                <th class="py-2">Name</th>
                 <th class="py-2">名單</th>
                 <th class="py-2">標籤</th>
                 <th class="py-2">狀態</th>
@@ -630,7 +630,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
         <input type="email" id="sub-modal-email" placeholder="name@example.com" class="w-full px-3 py-2 border border-stone-300 rounded text-sm focus:outline-none focus:border-stone-900" />
       </div>
       <div>
-        <label class="block text-xs text-stone-400 mb-1">稱呼 / 姓名</label>
+        <label class="block text-xs text-stone-400 mb-1">Name</label>
         <input type="text" id="sub-modal-name" class="w-full px-3 py-2 border border-stone-300 rounded text-sm focus:outline-none focus:border-stone-900" />
       </div>
       <div>
@@ -1118,7 +1118,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
         (sub.status === 'active'
           ? '<button onclick="openDirectSendModal(\\'' + sub.email + '\\', \\'' + (sub.name || '') + '\\')" class="text-xs bg-stone-900 hover:bg-stone-800 text-white font-medium px-2.5 py-1.5 rounded transition">個別發信</button> '
           : '') +
-        '<button onclick="editContact(' + sub.id + ')" class="text-xs px-2.5 py-1.5 rounded border border-stone-300 text-stone-600 hover:bg-stone-50 transition">編輯</button> ' +
+        '<button onclick="openSubscriberModal(' + sub.id + ')" class="text-xs px-2.5 py-1.5 rounded border border-stone-300 text-stone-600 hover:bg-stone-50 transition">編輯</button> ' +
         '<button onclick="deleteContact(' + sub.id + ', \\'' + sub.email + '\\')" class="text-xs px-2.5 py-1.5 rounded border border-rose-200 text-rose-600 hover:bg-rose-50 transition">刪除</button>';
 
       // 電腦版表格
