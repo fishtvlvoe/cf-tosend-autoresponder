@@ -36,11 +36,12 @@
 
 ## 4. 元件規範
 
-### 4.1 按鈕
+### 4.1 按鈕與選取膠囊
 
 - **文字 ≤ 4 個字**（「儲存」「匯出」「改名」「刪除」）。
 - 能用 SVG icon 取代文字就用 icon；icon-only 按鈕可接受（⋯三點、✕關閉）。
-- 按鈕樣式一律膠囊 chip 形（`rounded-full border px-3 py-1 text-xs`）；主動作才用 `bg-stone-900` 實心。
+- 動作按鈕樣式一律膠囊 chip 形（`rounded-full border px-3 py-1 text-xs`）；主動作才用 `bg-stone-900` 實心。
+- **選取膠囊**（modal 內多選、搜尋框已選）：`rounded-full text-xs px-3 py-1`，未選＝`bg-stone-100 text-stone-500` 無邊框；已選＝`bg-stone-900 text-white` 實心膠囊。**不套用動作按鈕的 border 樣式**（語意不同：這是狀態、不是動作）。
 
 ### 4.2 徽章（Badge）—— 名單與標籤的區分
 
