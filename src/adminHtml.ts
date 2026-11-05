@@ -190,7 +190,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>
           </button>
         </div>
-        <div class="overflow-x-auto text-xs hidden md:block">
+        <div class="overflow-x-auto text-xs hidden lg:block">
           <table class="w-full text-left">
             <thead>
               <tr class="text-stone-400 border-b border-stone-100 pb-2">
@@ -209,7 +209,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
           </table>
         </div>
         <!-- 手機版：日誌卡片列表 -->
-        <div id="logs-cards" class="md:hidden space-y-2">
+        <div id="logs-cards" class="lg:hidden space-y-2">
           <div class="py-4 text-center text-stone-400 text-sm">載入 D1 資料庫即時日誌中...</div>
         </div>
       </div>
@@ -262,7 +262,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
         </div>
         <div id="import-result" class="hidden text-xs bg-stone-50 border border-stone-200 rounded p-3"></div>
 
-        <div class="overflow-x-auto text-xs hidden md:block">
+        <div class="overflow-x-auto text-xs hidden lg:block">
           <table class="w-full text-left">
             <thead>
               <tr class="text-stone-400 border-b border-stone-100 pb-2">
@@ -283,7 +283,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
           </table>
         </div>
         <!-- 手機版：聯絡人卡片列表 -->
-        <div id="contacts-cards" class="md:hidden space-y-2">
+        <div id="contacts-cards" class="lg:hidden space-y-2">
           <div class="py-4 text-center text-stone-400 text-sm">載入 D1 名單中...</div>
         </div>
       </div>
@@ -1107,7 +1107,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
         return;
       }
 
-      const statusBadge = (sub) => '<span class="px-2 py-0.5 rounded text-[10px] ' + (sub.status === 'active' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200') + '">' + (sub.status === 'active' ? '啟用中' : sub.status === 'bounced' ? '已退信' : sub.status === 'deleted' ? '已刪除' : '已退訂') + '</span>';
+      const statusBadge = (sub) => '<span class="px-2 py-0.5 rounded text-[10px] whitespace-nowrap ' + (sub.status === 'active' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200') + '">' + (sub.status === 'active' ? '啟用中' : sub.status === 'bounced' ? '已退信' : sub.status === 'deleted' ? '已刪除' : '已退訂') + '</span>';
       const listsHtml = (sub) => (sub.lists && sub.lists.length)
         ? sub.lists.map(l => '<span class="list-badge">' + escHtml(l.name) + '</span>').join('')
         : '<span class="text-stone-300">--</span>';
