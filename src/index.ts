@@ -58,6 +58,7 @@ const WRITABLE_SETTINGS = [
   'site_domain',
   'landing_title',
   'landing_intro',
+  'admin_email',
 ] as const;
 
 const REQUIRED_SETTINGS = [
@@ -293,7 +294,7 @@ export default {
       if (url.pathname === '/api/admin/settings' && request.method === 'POST') {
         const body = (await request.json().catch(() => ({}))) as { key?: string; value?: string };
         const key = body.key ?? '';
-        if (key.startsWith('admin_') || key === 'onboarding_done') {
+        if (key === 'admin_password_hash' || key === 'onboarding_done') {
           return Response.json({ error: '此設定鍵由系統管理，不可寫入' }, { status: 403 });
         }
         if (!(WRITABLE_SETTINGS as readonly string[]).includes(key)) {

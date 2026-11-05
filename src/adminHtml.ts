@@ -21,6 +21,32 @@ export const adminConsoleHtml = `<!DOCTYPE html>
     #sidebar.sidebar-collapsed .side-label,
     #sidebar.sidebar-collapsed #sidebar-cta-wrap { display: none; }
     #sidebar.sidebar-collapsed .m-item { justify-content: center; padding-left: 0; padding-right: 0; }
+    /* 彩色標籤色盤（DESIGN.md 馬卡龍色盤：淺底深字同色淡框） */
+    .tagc-green, .tagc-blue, .tagc-yellow, .tagc-red, .tagc-purple, .tagc-pink, .tagc-orange, .tagc-gray {
+      display: inline-flex; align-items: center; padding: 1px 8px; border-radius: 6px; font-size: 10px; margin: 1px 4px 1px 0; white-space: nowrap;
+    }
+    .tagc-green { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+    .tagc-blue { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+    .tagc-yellow { background: #fef9c3; color: #854d0e; border: 1px solid #fef08a; }
+    .tagc-red { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+    .tagc-purple { background: #f3e8ff; color: #6b21a8; border: 1px solid #e9d5ff; }
+    .tagc-pink { background: #fce7f3; color: #9d174d; border: 1px solid #fbcfe8; }
+    .tagc-orange { background: #ffedd5; color: #9a3412; border: 1px solid #fed7aa; }
+    .tagc-gray { background: #f5f5f4; color: #44403c; border: 1px solid #e7e5e4; }
+    /* 名單徽章（中性灰） */
+    .list-badge { display: inline-flex; align-items: center; padding: 1px 8px; border-radius: 6px; font-size: 10px; background: #f5f5f4; color: #44403c; border: 1px solid #e7e5e4; margin: 1px 4px 1px 0; white-space: nowrap; }
+    /* 搜尋框式多選（名單/標籤篩選器） */
+    .pick-box { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; border: 1px solid #d6d3d1; border-radius: 8px; background: #fff; min-height: 34px; padding: 3px 8px; cursor: text; }
+    .pick-box:focus-within { border-color: #1c1917; }
+    .pick-box input { flex: 1; min-width: 70px; outline: none; font-size: 12px; background: transparent; padding: 2px 0; }
+    .pick-chip { display: inline-flex; align-items: center; gap: 2px; background: #1c1917; color: #fff; border-radius: 9999px; font-size: 11px; padding: 1px 4px 1px 8px; }
+    .pick-chip button { opacity: .6; padding: 0 3px; } .pick-chip button:hover { opacity: 1; }
+    .pick-panel { position: absolute; top: calc(100% + 4px); left: 0; z-index: 30; min-width: 100%; max-height: 240px; overflow-y: auto; background: #fff; border: 1px solid #e7e5e4; border-radius: 10px; box-shadow: 0 10px 24px rgba(0,0,0,.10); padding: 4px; font-size: 12px; }
+    .pick-panel .opt { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 7px; cursor: pointer; white-space: nowrap; }
+    .pick-panel .opt:hover { background: #f5f5f4; }
+    /* 選取膠囊（modal 內多選：未選淺灰無邊框／已選實心黑膠囊） */
+    .sel-chip { display: inline-flex; align-items: center; border-radius: 9999px; font-size: 12px; padding: 3px 12px; cursor: pointer; background: #f5f5f4; color: #78716c; border: none; margin: 2px; }
+    .sel-chip.on { background: #1c1917; color: #fff; }
   </style>
 </head>
 <body class="bg-[#fcfbf9] text-stone-800 antialiased min-h-screen flex flex-col">
@@ -192,35 +218,45 @@ export const adminConsoleHtml = `<!DOCTYPE html>
     <!-- 頁籤 2：名單 (Contacts) -->
     <section id="tab-contacts" class="hidden space-y-6">
       <div class="bg-white border border-stone-200 rounded-xl p-6 shadow-xs space-y-4">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-stone-100">
-          <h2 class="text-sm font-bold text-stone-900">名單管理</h2>
-          <div class="flex flex-wrap items-center gap-2">
-            <div class="flex items-center gap-2 text-xs">
-              <span class="text-stone-500">標籤分類：</span>
-              <select id="filter-tag" onchange="filterContactsByTag(this.value)" class="text-xs px-2.5 py-1.5 rounded border border-stone-300 bg-white focus:outline-none focus:border-stone-900">
-                <option value="all">全部名單</option>
-              </select>
-            </div>
-            <button onclick="promptNewSubscriber()" class="text-xs bg-stone-900 hover:bg-stone-800 text-white font-medium px-3 py-1.5 rounded transition flex items-center gap-1.5">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM3 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 019.374 21c-2.331 0-4.512-.645-6.374-1.766z"/></svg>
-              新增
-            </button>
-            <!-- 更多功能（三點選單）：匯出 / 匯入 -->
-            <div class="relative" id="contacts-more-wrap">
-              <button onclick="toggleContactsMoreMenu(event)" class="text-xs px-2.5 py-1.5 rounded border border-stone-300 text-stone-700 hover:bg-stone-50 transition" aria-label="更多功能">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 12.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 18.75a.75.75 0 110-1.5.75.75 0 010 1.5z"/></svg>
+        <div class="flex flex-col gap-3 pb-3 border-b border-stone-100">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <h2 class="text-sm font-bold text-stone-900">名單管理</h2>
+            <div class="flex flex-wrap items-center gap-2">
+              <button onclick="openSubscriberModal()" class="text-xs bg-stone-900 hover:bg-stone-800 text-white font-medium px-3 py-1.5 rounded transition flex items-center gap-1.5">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM3 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 019.374 21c-2.331 0-4.512-.645-6.374-1.766z"/></svg>
+                新增
               </button>
-              <div id="contacts-more-menu" class="hidden absolute right-0 mt-1 w-40 bg-white border border-stone-200 rounded-lg shadow-lg z-20 text-sm overflow-hidden">
-                <button onclick="exportCsv()" class="w-full text-left px-3 py-2 text-stone-700 hover:bg-stone-50 transition flex items-center gap-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
-                  匯出
+              <!-- 更多功能（三點選單） -->
+              <div class="relative" id="contacts-more-wrap">
+                <button onclick="toggleContactsMoreMenu(event)" class="text-xs px-2.5 py-1.5 rounded border border-stone-300 text-stone-700 hover:bg-stone-50 transition" aria-label="更多功能">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 12.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 18.75a.75.75 0 110-1.5.75.75 0 010 1.5z"/></svg>
                 </button>
-                <label class="w-full text-left px-3 py-2 text-stone-700 hover:bg-stone-50 transition flex items-center gap-2 cursor-pointer">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-16.5-6L12 4.5m0 0l4.5 6M12 4.5v12"/></svg>
-                  匯入
-                  <input type="file" accept=".csv,text/csv" class="hidden" onchange="importCsvFile(this)" />
-                </label>
+                <div id="contacts-more-menu" class="hidden absolute right-0 mt-1 w-40 bg-white border border-stone-200 rounded-lg shadow-lg z-20 text-sm overflow-hidden">
+                  <button onclick="openManageLists()" class="w-full text-left px-3 py-2 text-stone-700 hover:bg-stone-50 transition">管理名單</button>
+                  <button onclick="openManageTags()" class="w-full text-left px-3 py-2 text-stone-700 hover:bg-stone-50 transition">管理標籤</button>
+                  <hr class="my-1 border-stone-100">
+                  <button onclick="exportCsv()" class="w-full text-left px-3 py-2 text-stone-700 hover:bg-stone-50 transition flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+                    匯出
+                  </button>
+                  <label class="w-full text-left px-3 py-2 text-stone-700 hover:bg-stone-50 transition flex items-center gap-2 cursor-pointer">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-16.5-6L12 4.5m0 0l4.5 6M12 4.5v12"/></svg>
+                    匯入
+                    <input type="file" accept=".csv,text/csv" class="hidden" onchange="importCsvFile(this)" />
+                  </label>
+                </div>
               </div>
+            </div>
+          </div>
+          <!-- 篩選：第一行名單、第二行標籤（搜尋框式多選，聯集） -->
+          <div class="space-y-2">
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-stone-400 w-8 shrink-0">名單</span>
+              <div class="relative flex-1 max-w-md" id="pick-filter-list" data-pick="list"></div>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-stone-400 w-8 shrink-0">標籤</span>
+              <div class="relative flex-1 max-w-md" id="pick-filter-tag" data-pick="tag"></div>
             </div>
           </div>
         </div>
@@ -232,7 +268,8 @@ export const adminConsoleHtml = `<!DOCTYPE html>
               <tr class="text-stone-400 border-b border-stone-100 pb-2">
                 <th class="py-2">Email</th>
                 <th class="py-2">稱呼 / 姓名</th>
-                <th class="py-2">分類標籤 (Tags)</th>
+                <th class="py-2">名單</th>
+                <th class="py-2">標籤</th>
                 <th class="py-2">狀態</th>
                 <th class="py-2">訂閱時間</th>
                 <th class="py-2 text-right">操作</th>
@@ -240,7 +277,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
             </thead>
             <tbody id="contacts-tbody" class="divide-y divide-stone-50 text-stone-700">
               <tr>
-                <td colspan="6" class="py-4 text-center text-stone-400">載入 D1 名單中...</td>
+                <td colspan="7" class="py-4 text-center text-stone-400">載入 D1 名單中...</td>
               </tr>
             </tbody>
           </table>
@@ -272,28 +309,41 @@ export const adminConsoleHtml = `<!DOCTYPE html>
         <!-- 1. 選擇發送受眾對象 (Audience Selector) -->
         <div class="p-4 rounded-lg bg-stone-50 border border-stone-200 space-y-3">
           <label class="block text-xs font-semibold text-stone-900">第一步：選擇發信受眾對象</label>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-            <label class="flex items-start gap-2 p-3 bg-white rounded border border-stone-300 cursor-pointer hover:border-stone-900 transition">
-              <input type="radio" name="audience_type" value="all" checked onchange="toggleAudienceFilter(this.value)" class="mt-0.5" />
-              <div>
-                <span class="font-medium text-stone-900 block">全部聯絡人</span>
-              </div>
+          <div class="flex flex-wrap gap-3 text-xs">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="audience_type" value="all" checked onchange="toggleAudienceFilter(this.value)" />
+              <span class="text-stone-800">全部聯絡人</span>
             </label>
-            <label class="flex items-start gap-2 p-3 bg-white rounded border border-stone-300 cursor-pointer hover:border-stone-900 transition">
-              <input type="radio" name="audience_type" value="tag" onchange="toggleAudienceFilter(this.value)" class="mt-0.5" />
-              <div>
-                <span class="font-medium text-stone-900 block">指定標籤</span>
-              </div>
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="radio" name="audience_type" value="audience" onchange="toggleAudienceFilter(this.value)" />
+              <span class="text-stone-800">自訂受眾</span>
             </label>
           </div>
 
-          <div id="audience-tag-box" class="hidden pt-2 border-t border-stone-200/60 flex items-center gap-3">
-            <span class="text-xs text-stone-600">選擇要發送的標籤：</span>
-            <select id="campaign-selected-tag" class="text-xs px-2.5 py-1.5 rounded border border-stone-300 bg-white focus:outline-none focus:border-stone-900">
-              <option value="VIP">VIP 會員</option>
-              <option value="潛在客戶">潛在客戶</option>
-              <option value="一般訂閱">一般訂閱</option>
-            </select>
+          <div id="audience-custom-box" class="hidden pt-2 border-t border-stone-200/60 space-y-2">
+            <div id="campaign-audience-chips" class="flex flex-wrap items-center gap-1 min-h-[22px]"></div>
+            <div class="flex flex-wrap items-center gap-2 text-xs">
+              <span class="text-stone-500">名單</span>
+              <div class="relative">
+                <button type="button" onclick="toggleCampaignDd('dd-camp-list')" class="px-2.5 py-1.5 rounded border border-stone-300 bg-white hover:border-stone-900 transition flex items-center gap-1">
+                  選擇 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3 h-3 opacity-60"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/></svg>
+                </button>
+                <div id="dd-camp-list" class="hidden absolute left-0 top-8 z-30 min-w-[180px] bg-white border border-stone-200 rounded-xl shadow-lg p-1.5 space-y-0.5 max-h-56 overflow-y-auto"></div>
+              </div>
+              <span class="text-stone-500 ml-1">標籤</span>
+              <div class="relative">
+                <button type="button" onclick="toggleCampaignDd('dd-camp-tag')" class="px-2.5 py-1.5 rounded border border-stone-300 bg-white hover:border-stone-900 transition flex items-center gap-1">
+                  要有／排除 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3 h-3 opacity-60"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/></svg>
+                </button>
+                <div id="dd-camp-tag" class="hidden absolute left-0 top-8 z-30 min-w-[180px] bg-white border border-stone-200 rounded-xl shadow-lg p-1.5 max-h-64 overflow-y-auto">
+                  <div class="px-2.5 pt-1.5 pb-0.5 text-[10px] text-stone-400">要有這些標籤</div>
+                  <div id="dd-camp-tag-include" class="space-y-0.5"></div>
+                  <div class="px-2.5 pt-2 pb-0.5 text-[10px] text-stone-400">排除這些標籤</div>
+                  <div id="dd-camp-tag-exclude" class="space-y-0.5"></div>
+                </div>
+              </div>
+            </div>
+            <p class="text-[11px] text-stone-400">收信的人＝在選取名單中 ＋ 有勾選的標籤 － 被排除的標籤</p>
           </div>
         </div>
 
@@ -544,7 +594,12 @@ export const adminConsoleHtml = `<!DOCTYPE html>
       </div>
 
       <div class="bg-white p-6 rounded-xl border border-stone-200 shadow-xs space-y-4">
-        <h3 class="text-sm font-bold text-stone-900">安全</h3>
+        <h3 class="text-sm font-bold text-stone-900">帳號</h3>
+        <div>
+          <label class="block text-xs font-semibold text-stone-700 mb-1">登入 Email</label>
+          <input type="email" id="set-admin_email" placeholder="例如：me@example.com" class="w-full px-3 py-2 border border-stone-300 rounded text-sm focus:outline-none focus:border-stone-900" />
+          <p class="text-[11px] text-stone-400 mt-1">僅作為登入識別與聯絡用途。</p>
+        </div>
         <div>
           <label class="block text-xs font-semibold text-stone-700 mb-1">目前密碼</label>
           <input type="password" id="set-old-password" class="w-full px-3 py-2 border border-stone-300 rounded text-sm focus:outline-none focus:border-stone-900" />
@@ -553,11 +608,73 @@ export const adminConsoleHtml = `<!DOCTYPE html>
           <label class="block text-xs font-semibold text-stone-700 mb-1">新密碼（至少 8 字）</label>
           <input type="password" id="set-new-password" class="w-full px-3 py-2 border border-stone-300 rounded text-sm focus:outline-none focus:border-stone-900" />
         </div>
-        <button onclick="changePassword()" class="text-xs bg-stone-900 hover:bg-stone-800 text-white font-medium px-4 py-1.5 rounded transition">修改密碼</button>
-        <p class="text-[11px] text-stone-400">修改後所有已登入裝置會被登出。</p>
+        <div class="flex flex-wrap gap-2">
+          <button onclick="saveAdminEmail()" class="text-xs bg-stone-900 hover:bg-stone-800 text-white font-medium px-4 py-1.5 rounded transition">儲存 Email</button>
+          <button onclick="changePassword()" class="text-xs px-4 py-1.5 rounded border border-stone-300 text-stone-700 hover:bg-stone-50 transition">修改密碼</button>
+        </div>
+        <p class="text-[11px] text-stone-400">修改密碼後所有已登入裝置會被登出。</p>
       </div>
     </section>
   </main>
+  </div>
+
+  <!-- 新增／編輯聯絡人 Modal -->
+  <div id="subscriber-modal" class="fixed inset-0 bg-stone-900/40 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl w-full max-w-md p-5 shadow-xl space-y-3">
+      <div class="flex items-center justify-between">
+        <h3 id="subscriber-modal-title" class="font-semibold text-stone-900 text-sm">新增聯絡人</h3>
+        <button onclick="closeSubscriberModal()" class="text-xs px-2.5 py-1.5 rounded border border-stone-300 text-stone-500 hover:bg-stone-50">關閉</button>
+      </div>
+      <div id="sub-modal-email-wrap">
+        <label class="block text-xs text-stone-400 mb-1">Email</label>
+        <input type="email" id="sub-modal-email" placeholder="name@example.com" class="w-full px-3 py-2 border border-stone-300 rounded text-sm focus:outline-none focus:border-stone-900" />
+      </div>
+      <div>
+        <label class="block text-xs text-stone-400 mb-1">稱呼 / 姓名</label>
+        <input type="text" id="sub-modal-name" class="w-full px-3 py-2 border border-stone-300 rounded text-sm focus:outline-none focus:border-stone-900" />
+      </div>
+      <div>
+        <label class="block text-xs text-stone-400 mb-1">所屬名單（可複選）</label>
+        <div id="sub-modal-lists" class="flex flex-wrap -m-0.5"></div>
+      </div>
+      <div>
+        <label class="block text-xs text-stone-400 mb-1">標籤（可複選）</label>
+        <div id="sub-modal-tags" class="flex flex-wrap -m-0.5"></div>
+      </div>
+      <button onclick="saveSubscriberModal()" id="sub-modal-save" class="w-full bg-stone-900 hover:bg-stone-800 text-white text-sm font-medium py-2 rounded-lg">儲存</button>
+    </div>
+  </div>
+
+  <!-- 管理名單 Modal -->
+  <div id="manage-lists-modal" class="fixed inset-0 bg-stone-900/40 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl w-full max-w-md p-5 shadow-xl">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-semibold text-stone-900 text-sm">管理名單</h3>
+        <button onclick="document.getElementById('manage-lists-modal').classList.add('hidden')" class="text-xs px-2.5 py-1.5 rounded border border-stone-300 text-stone-500 hover:bg-stone-50">關閉</button>
+      </div>
+      <div class="flex gap-2 mb-3">
+        <input type="text" id="new-list-name" placeholder="新名單名稱" class="flex-1 px-3 py-1.5 border border-stone-300 rounded-full text-xs focus:outline-none focus:border-stone-900" />
+        <button onclick="createListFromModal()" class="text-xs bg-stone-900 text-white font-medium px-3 py-1.5 rounded-full">建立</button>
+      </div>
+      <div id="manage-lists-body" class="divide-y divide-stone-100 text-sm max-h-72 overflow-y-auto"></div>
+      <p class="text-[11px] text-stone-400 mt-3">刪除名單不會刪除聯絡人，只會移除歸屬。</p>
+    </div>
+  </div>
+
+  <!-- 管理標籤 Modal -->
+  <div id="manage-tags-modal" class="fixed inset-0 bg-stone-900/40 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl w-full max-w-md p-5 shadow-xl">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="font-semibold text-stone-900 text-sm">管理標籤</h3>
+        <button onclick="document.getElementById('manage-tags-modal').classList.add('hidden')" class="text-xs px-2.5 py-1.5 rounded border border-stone-300 text-stone-500 hover:bg-stone-50">關閉</button>
+      </div>
+      <div class="flex gap-2 mb-3">
+        <input type="text" id="new-tag-name" placeholder="新標籤名稱" class="flex-1 px-3 py-1.5 border border-stone-300 rounded-full text-xs focus:outline-none focus:border-stone-900" />
+        <button onclick="createTagFromModal()" class="text-xs bg-stone-900 text-white font-medium px-3 py-1.5 rounded-full">建立</button>
+      </div>
+      <div id="manage-tags-body" class="divide-y divide-stone-100 text-sm max-h-72 overflow-y-auto"></div>
+      <p class="text-[11px] text-stone-400 mt-3">刪除標籤會同時從所有聯絡人身上移除。</p>
+    </div>
   </div>
 
   <!-- 個別發信 Modal 視窗 -->
@@ -666,7 +783,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
 
 
     // 5. 設定頁 API 串接
-    const SETTING_KEYS = ['site_domain','landing_title','landing_intro','tosend_from_name','tosend_from_email','tosend_api_key'];
+    const SETTING_KEYS = ['site_domain','landing_title','landing_intro','tosend_from_name','tosend_from_email','tosend_api_key','admin_email'];
 
     async function loadSettingsData() {
       try {
@@ -705,6 +822,18 @@ export const adminConsoleHtml = `<!DOCTYPE html>
       el.textContent = text;
       el.className = 'text-xs ' + (ok ? 'text-emerald-600' : 'text-rose-600');
       el.classList.remove('hidden');
+    }
+
+    // 帳號卡片：儲存登入 Email（訊息直接 alert，不混用寄信設定的訊息列）
+    async function saveAdminEmail() {
+      const el = document.getElementById('set-admin_email');
+      const value = el.value.trim();
+      if (value && value.indexOf('@') === -1) { alert('請輸入合法的 Email 地址'); return; }
+      const res = await apiFetch('/api/admin/settings', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'admin_email', value }),
+      });
+      if (res.ok) { alert('✓ 已儲存登入 Email'); } else { alert('儲存失敗'); }
     }
 
     async function saveSettings(keys) {
@@ -851,48 +980,140 @@ export const adminConsoleHtml = `<!DOCTYPE html>
 
     // 2. 名單 API 串接
     let allContactsList = [];
+    let allLists = [];   // {id, name, description, count}
+    let allTags = [];    // {id, name, color, count}
+    const filterState = { list: [], tag: [] }; // 篩選已選 id（聯集）
     async function loadContactsData() {
       const tbody = document.getElementById('contacts-tbody');
       try {
-        const res = await apiFetch('/api/admin/subscribers');
-        if (res.ok) {
-          const { subscribers } = await res.json();
+        const [resSub, resList, resTag] = await Promise.all([
+          apiFetch('/api/admin/subscribers'),
+          apiFetch('/api/admin/lists'),
+          apiFetch('/api/admin/tags'),
+        ]);
+        if (resList.ok) allLists = (await resList.json()).lists || [];
+        if (resTag.ok) allTags = (await resTag.json()).tags || [];
+        if (resSub.ok) {
+          const { subscribers } = await resSub.json();
           allContactsList = subscribers || [];
-          renderContactsTable(allContactsList);
-          refreshTagFilter();
+          renderPickers();
+          renderCampaignAudiencePickers();
+          applyContactFilter();
         }
       } catch (err) {
-        tbody.innerHTML = '<tr><td colspan="6" class="py-4 text-center text-rose-500">無法連線載入名單</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="py-4 text-center text-rose-500">無法連線載入名單</td></tr>';
       }
     }
 
-    // 從 /api/admin/tags 動態產生標籤篩選選單
-    async function refreshTagFilter() {
-      try {
-        const res = await apiFetch('/api/admin/tags');
-        if (!res.ok) return;
-        const { tags } = await res.json();
-        const sel = document.getElementById('filter-tag');
-        const current = sel.value;
-        sel.innerHTML = '<option value="all">全部名單</option>' +
-          (tags || []).map(t => '<option value="' + t.name + '">' + t.name + '（' + t.count + '）</option>').join('');
-        sel.value = current;
-      } catch (e) { console.error('[Tags] Failed:', e); }
+    // ── 搜尋框式多選（名單/標籤篩選，聯集） ────────────────
+    function escHtml(s) {
+      return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function renderPickers() {
+      buildPicker('pick-filter-list', allLists, filterState.list, 'list', '搜尋名單…', '名單');
+      buildPicker('pick-filter-tag', allTags, filterState.tag, 'tag', '搜尋標籤…', '標籤');
+    }
+
+    function buildPicker(elId, items, selectedIds, kind, placeholder, unit) {
+      const wrap = document.getElementById(elId);
+      if (!wrap) return;
+      const chipsHtml = selectedIds.map(id => {
+        const it = items.filter(x => x.id === id)[0];
+        if (!it) return '';
+        return '<span class="pick-chip">' + escHtml(it.name) + '<button type="button" data-rm="' + id + '">✕</button></span>';
+      }).join('');
+      wrap.innerHTML =
+        '<div class="pick-box">' + chipsHtml +
+        '<input type="text" id="' + elId + '-input" placeholder="' + placeholder + '" autocomplete="off">' +
+        '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5 text-stone-400 shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/></svg>' +
+        '</div>' +
+        '<div class="pick-panel hidden" id="' + elId + '-panel"></div>';
+      const input = document.getElementById(elId + '-input');
+      const rerender = () => renderPickPanel(elId, items, selectedIds, kind, unit);
+      input.addEventListener('input', rerender);
+      input.addEventListener('focus', rerender);
+      wrap.querySelectorAll('[data-rm]').forEach(b => {
+        b.onclick = (e) => { e.stopPropagation(); toggleFilterPick(kind, Number(b.dataset.rm)); };
+      });
+    }
+
+    function renderPickPanel(elId, items, selectedIds, kind, unit) {
+      const panel = document.getElementById(elId + '-panel');
+      const input = document.getElementById(elId + '-input');
+      if (!panel || !input) return;
+      const q = (input.value || '').trim();
+      let html = '<div class="opt" data-all="1"><span class="text-stone-900 font-medium">全部</span><span class="text-stone-400 text-[10px]">（共 ' + items.length + ' 個' + unit + '）</span></div>';
+      const matches = items.filter(it => !q || it.name.indexOf(q) !== -1);
+      matches.forEach(it => {
+        const on = selectedIds.indexOf(it.id) !== -1;
+        html += '<div class="opt" data-id="' + it.id + '"><span class="w-3 text-stone-900">' + (on ? '✓' : '') + '</span><span class="' + (on ? 'font-medium' : '') + '">' + escHtml(it.name) + '</span></div>';
+      });
+      if (q && matches.length === 0) {
+        html += '<div class="opt" data-create="1"><span class="text-stone-400">＋</span><span>建立「' + escHtml(q) + '」</span></div>';
+      }
+      panel.innerHTML = html;
+      panel.classList.remove('hidden');
+      panel.querySelectorAll('.opt').forEach(o => {
+        o.onclick = () => {
+          if (o.dataset.all) { selectedIds.length = 0; renderPickers(); applyContactFilter(); }
+          else if (o.dataset.create) { quickCreatePick(kind, q); }
+          else { toggleFilterPick(kind, Number(o.dataset.id)); }
+        };
+      });
+    }
+
+    function toggleFilterPick(kind, id) {
+      const arr = filterState[kind];
+      const i = arr.indexOf(id);
+      if (i >= 0) arr.splice(i, 1); else arr.push(id);
+      renderPickers();
+      applyContactFilter();
+    }
+
+    async function quickCreatePick(kind, name) {
+      if (!name || !name.trim()) return;
+      const url = kind === 'list' ? '/api/admin/lists' : '/api/admin/tags';
+      const res = await apiFetch(url, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim() }),
+      });
+      if (!res.ok) { alert('建立失敗'); return; }
+      await loadContactsData();
+    }
+
+    // 點外面收起所有篩選面板（只綁一次）
+    if (!window.__haojiPickCloseBound) {
+      window.__haojiPickCloseBound = true;
+      document.addEventListener('click', (e) => {
+        document.querySelectorAll('.pick-panel').forEach(p => {
+          if (!e.target.closest('.pick-box') && !e.target.closest('.pick-panel')) p.classList.add('hidden');
+        });
+        ['dd-camp-list', 'dd-camp-tag'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el && !el.classList.contains('hidden') && !e.target.closest('#' + id) && !e.target.closest('button[onclick^="toggleCampaignDd"]')) {
+            el.classList.add('hidden');
+          }
+        });
+      });
     }
 
     function renderContactsTable(list) {
       const tbody = document.getElementById('contacts-tbody');
       const cardsEl = document.getElementById('contacts-cards');
       if (!list || list.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="py-4 text-center text-stone-400">目前 D1 資料庫尚無名單，可從前台訂閱、匯入 CSV 或點選右上方新增</td></tr>';
-        cardsEl.innerHTML = '<div class="py-4 text-center text-stone-400 text-sm">目前尚無名單<br>可從前台訂閱、匯入 CSV 或點選「新增」</div>';
+        tbody.innerHTML = '<tr><td colspan="7" class="py-4 text-center text-stone-400">沒有符合篩選條件的聯絡人</td></tr>';
+        cardsEl.innerHTML = '<div class="py-4 text-center text-stone-400 text-sm">沒有符合篩選條件的聯絡人</div>';
         return;
       }
 
       const statusBadge = (sub) => '<span class="px-2 py-0.5 rounded text-[10px] ' + (sub.status === 'active' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200') + '">' + (sub.status === 'active' ? '啟用中' : sub.status === 'bounced' ? '已退信' : sub.status === 'deleted' ? '已刪除' : '已退訂') + '</span>';
-      const tagsHtml = (sub) => (sub.tags || ';一般訂閱;').replace(/^;|;$/g, '').split(';').filter(Boolean).map(t =>
-        '<span class="inline-block mr-1 mb-1 px-2 py-0.5 rounded text-[10px] font-medium bg-stone-100 text-stone-700 border border-stone-200">' + t + '</span>'
-      ).join('');
+      const listsHtml = (sub) => (sub.lists && sub.lists.length)
+        ? sub.lists.map(l => '<span class="list-badge">' + escHtml(l.name) + '</span>').join('')
+        : '<span class="text-stone-300">--</span>';
+      const tagsHtml = (sub) => (sub.tags_arr && sub.tags_arr.length)
+        ? sub.tags_arr.map(t => '<span class="tagc-' + (t.color || 'gray') + '">' + escHtml(t.name) + '</span>').join('')
+        : '<span class="text-stone-300">--</span>';
       const actionBtns = (sub) =>
         (sub.status === 'active'
           ? '<button onclick="openDirectSendModal(\\'' + sub.email + '\\', \\'' + (sub.name || '') + '\\')" class="text-xs bg-stone-900 hover:bg-stone-800 text-white font-medium px-2.5 py-1.5 rounded transition">個別發信</button> '
@@ -906,6 +1127,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
         return '<tr>' +
           '<td class="py-3 font-mono font-medium ' + (isUnsub ? 'text-stone-400 line-through' : 'text-stone-900') + '">' + sub.email + '</td>' +
           '<td class="py-3">' + (sub.name || '--') + '</td>' +
+          '<td class="py-3">' + listsHtml(sub) + '</td>' +
           '<td class="py-3">' + tagsHtml(sub) + '</td>' +
           '<td class="py-3">' + statusBadge(sub) + '</td>' +
           '<td class="py-3 text-stone-400 font-mono">' + (sub.created_at || '--') + '</td>' +
@@ -924,36 +1146,201 @@ export const adminConsoleHtml = `<!DOCTYPE html>
             '</div>' +
             statusBadge(sub) +
           '</div>' +
+          '<div>' + listsHtml(sub) + '</div>' +
           '<div>' + tagsHtml(sub) + '</div>' +
           '<div class="flex flex-wrap gap-2 pt-2 border-t border-stone-100">' + actionBtns(sub) + '</div>' +
         '</div>';
       }).join('');
     }
 
-    function filterContactsByTag(tag) {
-      if (tag === 'all') {
-        renderContactsTable(allContactsList);
-      } else {
-        // 正規化分號包裹格式：用分號邊界比對
-        const filtered = allContactsList.filter(s => (';' + (s.tags || '') + ';').includes(';' + tag + ';'));
-        renderContactsTable(filtered);
+    function applyContactFilter() {
+      const listIds = filterState.list;
+      const tagIds = filterState.tag;
+      const filtered = allContactsList.filter(s => {
+        if (listIds.length && !listIds.some(id => (s.lists || []).some(l => l.id === id))) return false;
+        if (tagIds.length && !tagIds.some(id => (s.tags_arr || []).some(t => t.id === id))) return false;
+        return true;
+      });
+      renderContactsTable(filtered);
+    }
+
+    // ── 新增／編輯聯絡人 Modal ────────────────────────────
+    let editingSubscriberId = null;
+
+    function renderSelChips(elId, items, selectedIds) {
+      const el = document.getElementById(elId);
+      el.innerHTML = items.map(it => {
+        const on = selectedIds.indexOf(it.id) !== -1;
+        return '<button type="button" class="sel-chip' + (on ? ' on' : '') + '" data-id="' + it.id + '">' + escHtml(it.name) + '</button>';
+      }).join('') || '<span class="text-xs text-stone-300">尚無選項，可從篩選框建立</span>';
+      el.querySelectorAll('.sel-chip').forEach(c => {
+        c.onclick = () => { c.classList.toggle('on'); };
+      });
+    }
+
+    function openSubscriberModal(id) {
+      editingSubscriberId = (id === undefined) ? null : id;
+      const sub = editingSubscriberId ? allContactsList.filter(s => s.id === editingSubscriberId)[0] : null;
+      document.getElementById('subscriber-modal-title').innerText = sub ? '編輯聯絡人' : '新增聯絡人';
+      document.getElementById('sub-modal-email-wrap').classList.toggle('hidden', !!sub);
+      document.getElementById('sub-modal-email').value = sub ? sub.email : '';
+      document.getElementById('sub-modal-name').value = sub ? (sub.name || '') : '';
+      renderSelChips('sub-modal-lists', allLists, sub ? (sub.lists || []).map(l => l.id) : []);
+      renderSelChips('sub-modal-tags', allTags, sub ? (sub.tags_arr || []).map(t => t.id) : []);
+      document.getElementById('subscriber-modal').classList.remove('hidden');
+    }
+    function closeSubscriberModal() {
+      document.getElementById('subscriber-modal').classList.add('hidden');
+    }
+
+    function collectSelChips(elId) {
+      return [...document.querySelectorAll('#' + elId + ' .sel-chip.on')].map(c => Number(c.dataset.id));
+    }
+
+    async function saveSubscriberModal() {
+      const name = document.getElementById('sub-modal-name').value.trim();
+      const listIds = collectSelChips('sub-modal-lists');
+      const tagIds = collectSelChips('sub-modal-tags');
+      const tagNames = tagIds.map(id => (allTags.filter(t => t.id === id)[0] || {}).name).filter(Boolean);
+      const btn = document.getElementById('sub-modal-save');
+      btn.disabled = true;
+      try {
+        let res;
+        if (editingSubscriberId) {
+          res = await apiFetch('/api/admin/subscribers', {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: editingSubscriberId, name, listIds, tagNames }),
+          });
+        } else {
+          const email = document.getElementById('sub-modal-email').value.trim();
+          if (!email || email.indexOf('@') === -1) { alert('請輸入合法的 Email'); btn.disabled = false; return; }
+          res = await apiFetch('/api/admin/subscribers', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, name, listIds, tagNames }),
+          });
+        }
+        const d = await res.json().catch(() => ({}));
+        if (res.ok && d.success) {
+          closeSubscriberModal();
+          loadContactsData();
+          loadDashboardStats();
+        } else {
+          alert('儲存失敗：' + (d.error || '未知原因'));
+        }
+      } catch (err) {
+        alert('儲存失敗：無法連線');
+      } finally {
+        btn.disabled = false;
       }
     }
 
-    // 編輯聯絡人（名稱 + 標籤，分號分隔多標籤）
-    async function editContact(id) {
-      const sub = allContactsList.find(s => s.id === id);
-      if (!sub) return;
-      const name = prompt('稱呼 / 姓名：', sub.name || '');
-      if (name === null) return;
-      const tags = prompt('標籤（多個用分號分隔，如：VIP;BNI）：', (sub.tags || '').replace(/^;|;$/g, ''));
-      if (tags === null) return;
-      const res = await apiFetch('/api/admin/subscribers', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, name, tags }),
+    // ── 管理名單 / 管理標籤 Modal ─────────────────────────
+    async function openManageLists() {
+      document.getElementById('contacts-more-menu').classList.add('hidden');
+      await renderManageLists();
+      document.getElementById('manage-lists-modal').classList.remove('hidden');
+    }
+    async function renderManageLists() {
+      const res = await apiFetch('/api/admin/lists');
+      const d = await res.json();
+      const lists = d.lists || [];
+      const body = document.getElementById('manage-lists-body');
+      if (!lists.length) {
+        body.innerHTML = '<div class="py-4 text-center text-xs text-stone-400">尚無名單，在上方輸入名稱建立</div>';
+        return;
+      }
+      body.innerHTML = lists.map(l =>
+        '<div class="flex items-center gap-2 py-2">' +
+          '<span class="font-medium flex-1 truncate">' + escHtml(l.name) + '</span>' +
+          '<span class="text-xs text-stone-400 shrink-0">' + l.count + ' 人</span>' +
+          '<button class="text-xs px-2 py-1 rounded border border-stone-300 text-stone-600 hover:bg-stone-50" onclick="renameListItem(' + l.id + ')">改名</button>' +
+          '<button class="text-xs px-2 py-1 rounded border border-stone-200 text-rose-600 hover:bg-rose-50" onclick="deleteListItem(' + l.id + ')">刪除</button>' +
+        '</div>'
+      ).join('');
+    }
+    async function createListFromModal() {
+      const input = document.getElementById('new-list-name');
+      const name = input.value.trim();
+      if (!name) return;
+      const res = await apiFetch('/api/admin/lists', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
       });
-      if (res.ok) { loadContactsData(); } else { alert('更新失敗'); }
+      if (!res.ok) { alert('建立失敗'); return; }
+      input.value = '';
+      await renderManageLists();
+      await loadContactsData();
+    }
+    async function renameListItem(id) {
+      const name = prompt('新名單名稱：');
+      if (!name || !name.trim()) return;
+      const res = await apiFetch('/api/admin/lists', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, name: name.trim() }),
+      });
+      if (!res.ok) { alert('改名失敗'); return; }
+      await renderManageLists();
+      await loadContactsData();
+    }
+    async function deleteListItem(id) {
+      if (!confirm('確定刪除此名單？（不會刪除聯絡人，只移除歸屬）')) return;
+      await apiFetch('/api/admin/lists?id=' + id, { method: 'DELETE' });
+      await renderManageLists();
+      await loadContactsData();
+    }
+
+    async function openManageTags() {
+      document.getElementById('contacts-more-menu').classList.add('hidden');
+      await renderManageTags();
+      document.getElementById('manage-tags-modal').classList.remove('hidden');
+    }
+    async function renderManageTags() {
+      const res = await apiFetch('/api/admin/tags');
+      const d = await res.json();
+      const tags = d.tags || [];
+      const body = document.getElementById('manage-tags-body');
+      if (!tags.length) {
+        body.innerHTML = '<div class="py-4 text-center text-xs text-stone-400">尚無標籤，在上方輸入名稱建立</div>';
+        return;
+      }
+      body.innerHTML = tags.map(t =>
+        '<div class="flex items-center gap-2 py-2">' +
+          '<span class="tagc-' + (t.color || 'gray') + '">' + escHtml(t.name) + '</span>' +
+          '<span class="text-xs text-stone-400 flex-1">' + t.count + ' 人</span>' +
+          '<button class="text-xs px-2 py-1 rounded border border-stone-300 text-stone-600 hover:bg-stone-50" onclick="renameTagItem(' + t.id + ')">改名</button>' +
+          '<button class="text-xs px-2 py-1 rounded border border-stone-200 text-rose-600 hover:bg-rose-50" onclick="deleteTagItem(' + t.id + ')">刪除</button>' +
+        '</div>'
+      ).join('');
+    }
+    async function createTagFromModal() {
+      const input = document.getElementById('new-tag-name');
+      const name = input.value.trim();
+      if (!name) return;
+      const res = await apiFetch('/api/admin/tags', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      if (!res.ok) { alert('建立失敗'); return; }
+      input.value = '';
+      await renderManageTags();
+      await loadContactsData();
+    }
+    async function renameTagItem(id) {
+      const name = prompt('新標籤名稱：');
+      if (!name || !name.trim()) return;
+      const res = await apiFetch('/api/admin/tags', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, name: name.trim() }),
+      });
+      if (!res.ok) { alert('改名失敗'); return; }
+      await renderManageTags();
+      await loadContactsData();
+    }
+    async function deleteTagItem(id) {
+      if (!confirm('確定刪除此標籤？會同時從所有聯絡人身上移除。')) return;
+      await apiFetch('/api/admin/tags?id=' + id, { method: 'DELETE' });
+      await renderManageTags();
+      await loadContactsData();
     }
 
     async function deleteContact(id, email) {
@@ -998,30 +1385,9 @@ export const adminConsoleHtml = `<!DOCTYPE html>
       window.open('/api/admin/export', '_blank');
     }
 
-    // 手動新增
-    async function promptNewSubscriber() {
-      const email = prompt('請輸入新聯絡人 Email：');
-      if (!email) return;
-      const name = prompt('請輸入稱呼 / 姓名（選填）：', '') || '';
-      const tags = prompt('請輸入分類標籤（例如 VIP、潛在客戶、一般訂閱）：', '一般訂閱') || '一般訂閱';
-
-      try {
-        const res = await apiFetch('/api/admin/subscribers', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, name, tags })
-        });
-        const d = await res.json();
-        if (res.ok && d.success) {
-          alert('成功新增至 D1 資料庫！');
-          loadContactsData();
-          loadDashboardStats();
-        } else {
-          alert('新增失敗：' + (d.error || '未知原因'));
-        }
-      } catch (err) {
-        alert('新增失敗：無法連線至 Worker');
-      }
+    // 手動新增（由「新增」按鈕開 Modal；此函式保留給舊引用）
+    function promptNewSubscriber() {
+      openSubscriberModal();
     }
 
     // 個別發信 Modal
@@ -1079,17 +1445,56 @@ export const adminConsoleHtml = `<!DOCTYPE html>
 
     // 3. 廣播群發功能
     function toggleAudienceFilter(val) {
-      const tagBox = document.getElementById('audience-tag-box');
-      if (val === 'tag') {
-        tagBox.classList.remove('hidden');
-      } else {
-        tagBox.classList.add('hidden');
-      }
+      document.getElementById('audience-custom-box').classList.toggle('hidden', val !== 'audience');
+      if (val === 'audience') renderCampaignAudienceChips();
+    }
+
+    function toggleCampaignDd(id) {
+      ['dd-camp-list', 'dd-camp-tag'].forEach(x => {
+        if (x !== id) document.getElementById(x).classList.add('hidden');
+      });
+      document.getElementById(id).classList.toggle('hidden');
+    }
+
+    function renderCampaignAudiencePickers() {
+      const listBox = document.getElementById('dd-camp-list');
+      if (!listBox) return;
+      listBox.innerHTML = allLists.length
+        ? allLists.map(l => '<label class="opt"><input type="checkbox" data-camp="list" value="' + l.id + '" onchange="renderCampaignAudienceChips()"><span>' + escHtml(l.name) + '</span></label>').join('')
+        : '<div class="px-2.5 py-2 text-stone-400 text-xs">尚無名單</div>';
+      const incBox = document.getElementById('dd-camp-tag-include');
+      const excBox = document.getElementById('dd-camp-tag-exclude');
+      const opt = (t, kind) => '<label class="opt"><input type="checkbox" data-camp="' + kind + '" value="' + t.id + '" onchange="renderCampaignAudienceChips()"><span class="tagc-' + (t.color || 'gray') + '">' + escHtml(t.name) + '</span></label>';
+      incBox.innerHTML = allTags.length ? allTags.map(t => opt(t, 'inc')).join('') : '<div class="px-2.5 py-2 text-stone-400 text-xs">尚無標籤</div>';
+      excBox.innerHTML = allTags.length ? allTags.map(t => opt(t, 'exc')).join('') : '';
+    }
+
+    function collectCamp(kind) {
+      return [...document.querySelectorAll('input[data-camp="' + kind + '"]:checked')].map(c => Number(c.value));
+    }
+
+    function renderCampaignAudienceChips() {
+      const box = document.getElementById('campaign-audience-chips');
+      if (!box) return;
+      let html = '';
+      collectCamp('list').forEach(id => {
+        const it = allLists.filter(l => l.id === id)[0];
+        if (it) html += '<span class="pick-chip">' + escHtml(it.name) + '</span>';
+      });
+      collectCamp('inc').forEach(id => {
+        const it = allTags.filter(t => t.id === id)[0];
+        if (it) html += '<span class="tagc-' + (it.color || 'gray') + '">有 ' + escHtml(it.name) + '</span>';
+      });
+      collectCamp('exc').forEach(id => {
+        const it = allTags.filter(t => t.id === id)[0];
+        if (it) html += '<span class="tagc-gray">無 ' + escHtml(it.name) + '</span>';
+      });
+      if (!html) html = '<span class="text-xs text-stone-400">尚未選擇受眾條件（未選＝全部聯絡人）</span>';
+      box.innerHTML = html;
     }
 
     async function executeCampaignBroadcast() {
       const aud = document.querySelector('input[name="audience_type"]:checked').value;
-      const tag = document.getElementById('campaign-selected-tag').value;
       const name = document.getElementById('campaign-name').value.trim();
       const subject = document.getElementById('campaign-subject').value.trim();
       const visualEl = document.getElementById('campaign-visual-editor');
@@ -1101,7 +1506,16 @@ export const adminConsoleHtml = `<!DOCTYPE html>
         return;
       }
 
-      const targetDesc = (aud === 'tag') ? ('指定標籤：' + tag) : '全部聯絡人';
+      const payload = { name, subject, content_html: content, target_type: aud };
+      let targetDesc = '全部聯絡人';
+      if (aud === 'audience') {
+        payload.audience = {
+          listIds: collectCamp('list'),
+          includeTagIds: collectCamp('inc'),
+          excludeTagIds: collectCamp('exc'),
+        };
+        targetDesc = '自訂受眾（名單 ' + payload.audience.listIds.length + ' 個，標籤 有 ' + payload.audience.includeTagIds.length + ' / 排除 ' + payload.audience.excludeTagIds.length + '）';
+      }
       if (!confirm('確定要立即透過 ToSend API 群發廣播信給【' + targetDesc + '】嗎？')) {
         return;
       }
@@ -1114,13 +1528,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
         const res = await apiFetch('/api/admin/campaigns/send', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name,
-            subject,
-            content_html: content,
-            target_type: aud,
-            target_tag: tag
-          })
+          body: JSON.stringify(payload)
         });
         const d = await res.json();
         if (res.ok && d.success) {
