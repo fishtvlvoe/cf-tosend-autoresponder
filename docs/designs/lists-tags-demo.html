@@ -17,7 +17,16 @@
   .chip.sel.on { background:#1c1917; color:#fff; }
   .tagchip { display:inline-flex; align-items:center; gap:5px; padding:2px 8px; border-radius:6px; font-size:11px; background:#f5f5f4; color:#44403c; border:1px solid #e7e5e4; margin:1px; white-space:nowrap; }
   .tagchip button { opacity:.6; padding:0; } .tagchip button:hover { opacity:1; }
-  .tagchip.outline::before { content:''; width:5px; height:5px; border-radius:9999px; background:#a8a29e; flex-shrink:0; }
+  /* 彩色標籤色盤（馬卡龍：淺底深字） */
+  .tagc-green  { background:#dcfce7; color:#166534; }
+  .tagc-blue   { background:#dbeafe; color:#1e40af; }
+  .tagc-yellow { background:#fef9c3; color:#854d0e; }
+  .tagc-red    { background:#fee2e2; color:#991b1b; }
+  .tagc-purple { background:#f3e8ff; color:#6b21a8; }
+  .tagc-pink   { background:#fce7f3; color:#9d174d; }
+  .tagc-orange { background:#ffedd5; color:#9a3412; }
+  .tagc-gray   { background:#f5f5f4; color:#44403c; }
+  .tagchip.outline { background:#fff; border-style:dashed; color:#57534e; }
   .modal-bg { background:rgba(28,25,23,.45); }
   .dd-panel { position:absolute; top:calc(100% + 6px); left:0; z-index:20; min-width:100%; background:#fff; border:1px solid #e7e5e4; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.12); padding:6px; font-size:13px; }
   .dd-panel label, .dd-panel .opt { display:flex; align-items:center; gap:8px; padding:7px 10px; border-radius:8px; cursor:pointer; }
@@ -107,21 +116,21 @@
         <div class="contact-row grid grid-cols-2 md:grid-cols-12 gap-2 px-4 py-3 items-center" data-lists="電子報主名單" data-tags="vip,已購課">
           <div class="col-span-2 md:col-span-4"><div class="font-medium text-stone-800">fish.myfb@gmail.com</div><div class="text-xs text-stone-400">老魚</div></div>
           <div class="md:col-span-3"><span class="tagchip">電子報主名單</span></div>
-          <div class="md:col-span-3"><span class="tagchip outline">vip</span><span class="tagchip outline">已購課</span></div>
+          <div class="md:col-span-3"><span class="tagc-green">vip</span><span class="tagc-blue">已購課</span></div>
           <div class="md:col-span-1 text-xs text-emerald-600">啟用中</div>
           <div class="md:col-span-1 text-right"><button class="chip" onclick="openModal('modal-edit')">編輯</button></div>
         </div>
         <div class="contact-row grid grid-cols-2 md:grid-cols-12 gap-2 px-4 py-3 items-center" data-lists="課程A學員,電子報主名單" data-tags="點過連結">
           <div class="col-span-2 md:col-span-4"><div class="font-medium text-stone-800">andy@test.com</div><div class="text-xs text-stone-400">小安</div></div>
           <div class="md:col-span-3"><span class="tagchip">課程A學員</span><span class="tagchip">電子報主名單</span></div>
-          <div class="md:col-span-3"><span class="tagchip outline">點過連結</span></div>
+          <div class="md:col-span-3"><span class="tagc-yellow">點過連結</span></div>
           <div class="md:col-span-1 text-xs text-emerald-600">啟用中</div>
           <div class="md:col-span-1 text-right"><button class="chip" onclick="openModal('modal-edit')">編輯</button></div>
         </div>
         <div class="contact-row grid grid-cols-2 md:grid-cols-12 gap-2 px-4 py-3 items-center" data-lists="直播活動" data-tags="冷名單">
           <div class="col-span-2 md:col-span-4"><div class="font-medium text-stone-800">mei@test.com</div><div class="text-xs text-stone-400">阿美</div></div>
           <div class="md:col-span-3"><span class="tagchip">直播活動</span></div>
-          <div class="md:col-span-3"><span class="tagchip outline">冷名單</span></div>
+          <div class="md:col-span-3"><span class="tagc-gray">冷名單</span></div>
           <div class="md:col-span-1 text-xs text-stone-400">已退訂</div>
           <div class="md:col-span-1 text-right"><button class="chip" onclick="openModal('modal-edit')">編輯</button></div>
         </div>
