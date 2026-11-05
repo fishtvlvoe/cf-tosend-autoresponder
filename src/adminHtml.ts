@@ -15,6 +15,12 @@ export const adminConsoleHtml = `<!DOCTYPE html>
     .m-active { background: #1c1917; color: #ffffff; font-weight: 600; }
     .m-inactive { color: #44403c; }
     .m-inactive:hover { background: #f5f5f4; }
+    /* 電腦版側邊欄收合 */
+    #sidebar { width: 13rem; transition: width .2s ease; }
+    #sidebar.sidebar-collapsed { width: 3.25rem; }
+    #sidebar.sidebar-collapsed .side-label,
+    #sidebar.sidebar-collapsed #sidebar-cta-wrap { display: none; }
+    #sidebar.sidebar-collapsed .m-item { justify-content: center; padding-left: 0; padding-right: 0; }
   </style>
 </head>
 <body class="bg-[#fcfbf9] text-stone-800 antialiased min-h-screen flex flex-col">
@@ -34,7 +40,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
     <div class="flex flex-wrap items-center gap-2">
       <button onclick="triggerCronExecution()" id="btn-trigger-cron" class="text-xs bg-stone-900 hover:bg-stone-800 text-white font-medium px-3 py-1.5 rounded transition flex items-center gap-1.5" title="立即執行一次排程檢查（平時每小時自動執行）">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z"/></svg>
-        執行排程
+        <span id="btn-trigger-cron-label" class="hidden sm:inline">執行排程</span>
       </button>
       <button onclick="logoutAdmin()" class="text-xs bg-stone-100 hover:bg-stone-200 text-stone-600 hover:text-stone-900 font-medium px-3 py-1.5 rounded transition flex items-center gap-1.5">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l3 3m0 0l-3 3m3-3H2.25"/></svg>
@@ -53,19 +59,19 @@ export const adminConsoleHtml = `<!DOCTYPE html>
       </div>
       <button data-tab="dashboard" data-nav-style="menu" class="m-item m-active">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/></svg>
-        數據總覽
+        總覽
       </button>
       <button data-tab="contacts" data-nav-style="menu" class="m-item m-inactive">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/></svg>
-        聯絡人名單
+        名單
       </button>
       <button data-tab="campaigns" data-nav-style="menu" class="m-item m-inactive">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"/></svg>
-        電子報廣播
+        廣播
       </button>
       <button data-tab="automations" data-nav-style="menu" class="m-item m-inactive">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-        自動跟進排程
+        排程
       </button>
       <button data-tab="settings" data-nav-style="menu" class="m-item m-inactive">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
@@ -74,7 +80,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
       <div class="pt-3 mt-3 border-t border-stone-100">
         <button onclick="switchTab('campaigns')" class="m-item bg-stone-900 text-white font-medium justify-center">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487z"/></svg>
-          撰寫新廣播信
+          新廣播信
         </button>
       </div>
     </div>
@@ -82,33 +88,38 @@ export const adminConsoleHtml = `<!DOCTYPE html>
 
   <div class="flex-1 w-full max-w-7xl mx-auto flex flex-col md:flex-row gap-6 px-4 md:px-6 py-6">
     <!-- 左側選單列（電腦版／平板；手機版收進漢堡選單） -->
-    <aside class="hidden md:block w-52 shrink-0">
+    <aside class="hidden md:block shrink-0" id="sidebar">
       <div class="sticky top-24 bg-white border border-stone-200 rounded-xl p-3 space-y-1">
-        <div class="px-2 pb-1 text-[11px] font-semibold text-stone-400 uppercase tracking-wider">後台選單</div>
+        <div class="flex items-center justify-between pl-2 pr-1 pb-1">
+          <span class="side-label text-[11px] font-semibold text-stone-400 uppercase tracking-wider">後台選單</span>
+          <button onclick="toggleSidebar()" title="收合選單" aria-label="收合選單" class="p-1 rounded hover:bg-stone-100 text-stone-400 hover:text-stone-700 transition">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M18.75 19.5l-7.5-7.5 7.5-7.5m-6 15L5.25 12l7.5-7.5"/></svg>
+          </button>
+        </div>
         <button data-tab="dashboard" data-nav-style="menu" id="tab-btn-dashboard" class="m-item m-active">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/></svg>
-          數據總覽
+          <span class="side-label">總覽</span>
         </button>
         <button data-tab="contacts" data-nav-style="menu" id="tab-btn-contacts" class="m-item m-inactive">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/></svg>
-          聯絡人名單
+          <span class="side-label">名單</span>
         </button>
         <button data-tab="campaigns" data-nav-style="menu" id="tab-btn-campaigns" class="m-item m-inactive">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"/></svg>
-          電子報廣播
+          <span class="side-label">廣播</span>
         </button>
         <button data-tab="automations" data-nav-style="menu" id="tab-btn-automations" class="m-item m-inactive">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          自動跟進排程
+          <span class="side-label">排程</span>
         </button>
         <button data-tab="settings" data-nav-style="menu" id="tab-btn-settings" class="m-item m-inactive">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-          設定
+          <span class="side-label">設定</span>
         </button>
-        <div class="pt-2 mt-1 border-t border-stone-100">
+        <div class="pt-2 mt-1 border-t border-stone-100" id="sidebar-cta-wrap">
           <button onclick="switchTab('campaigns')" class="w-full text-xs bg-stone-900 hover:bg-stone-800 text-white font-medium px-3 py-2 rounded-lg transition flex items-center justify-center gap-1.5">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487z"/></svg>
-            撰寫新廣播信
+            新廣播信
           </button>
         </div>
       </div>
@@ -121,7 +132,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
       </div>
 
 
-    <!-- 頁籤 1：數據總覽 (Dashboard) -->
+    <!-- 頁籤 1：總覽 (Dashboard) -->
     <section id="tab-dashboard" class="space-y-6">
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div class="bg-white p-4 rounded-xl border border-stone-200 shadow-xs">
@@ -149,7 +160,9 @@ export const adminConsoleHtml = `<!DOCTYPE html>
       <div class="bg-white border border-stone-200 rounded-xl p-6 shadow-xs">
         <div class="flex items-center justify-between pb-3 border-b border-stone-100 mb-4">
           <h2 class="text-sm font-bold text-stone-900">即時投遞日誌 (Delivery Logs)</h2>
-          <button onclick="loadLogsData()" class="text-xs text-stone-500 hover:text-stone-900 transition font-mono">重新整理日誌</button>
+          <button onclick="loadLogsData()" class="p-1.5 rounded text-stone-400 hover:text-stone-900 transition" title="重新整理日誌" aria-label="重新整理日誌">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>
+          </button>
         </div>
         <div class="overflow-x-auto text-xs hidden md:block">
           <table class="w-full text-left">
@@ -176,11 +189,11 @@ export const adminConsoleHtml = `<!DOCTYPE html>
       </div>
     </section>
 
-    <!-- 頁籤 2：聯絡人名單 (Contacts) -->
+    <!-- 頁籤 2：名單 (Contacts) -->
     <section id="tab-contacts" class="hidden space-y-6">
       <div class="bg-white border border-stone-200 rounded-xl p-6 shadow-xs space-y-4">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-stone-100">
-          <h2 class="text-sm font-bold text-stone-900">聯絡人名單管理</h2>
+          <h2 class="text-sm font-bold text-stone-900">名單管理</h2>
           <div class="flex flex-wrap items-center gap-2">
             <div class="flex items-center gap-2 text-xs">
               <span class="text-stone-500">標籤分類：</span>
@@ -190,7 +203,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
             </div>
             <button onclick="promptNewSubscriber()" class="text-xs bg-stone-900 hover:bg-stone-800 text-white font-medium px-3 py-1.5 rounded transition flex items-center gap-1.5">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-3.5 h-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM3 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 019.374 21c-2.331 0-4.512-.645-6.374-1.766z"/></svg>
-              新增聯絡人
+              新增
             </button>
             <!-- 更多功能（三點選單）：匯出 / 匯入 -->
             <div class="relative" id="contacts-more-wrap">
@@ -200,11 +213,11 @@ export const adminConsoleHtml = `<!DOCTYPE html>
               <div id="contacts-more-menu" class="hidden absolute right-0 mt-1 w-40 bg-white border border-stone-200 rounded-lg shadow-lg z-20 text-sm overflow-hidden">
                 <button onclick="exportCsv()" class="w-full text-left px-3 py-2 text-stone-700 hover:bg-stone-50 transition flex items-center gap-2">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
-                  匯出 CSV
+                  匯出
                 </button>
                 <label class="w-full text-left px-3 py-2 text-stone-700 hover:bg-stone-50 transition flex items-center gap-2 cursor-pointer">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-16.5-6L12 4.5m0 0l4.5 6M12 4.5v12"/></svg>
-                  匯入 CSV
+                  匯入
                   <input type="file" accept=".csv,text/csv" class="hidden" onchange="importCsvFile(this)" />
                 </label>
               </div>
@@ -227,32 +240,31 @@ export const adminConsoleHtml = `<!DOCTYPE html>
             </thead>
             <tbody id="contacts-tbody" class="divide-y divide-stone-50 text-stone-700">
               <tr>
-                <td colspan="6" class="py-4 text-center text-stone-400">載入 D1 聯絡人名單中...</td>
+                <td colspan="6" class="py-4 text-center text-stone-400">載入 D1 名單中...</td>
               </tr>
             </tbody>
           </table>
         </div>
         <!-- 手機版：聯絡人卡片列表 -->
         <div id="contacts-cards" class="md:hidden space-y-2">
-          <div class="py-4 text-center text-stone-400 text-sm">載入 D1 聯絡人名單中...</div>
+          <div class="py-4 text-center text-stone-400 text-sm">載入 D1 名單中...</div>
         </div>
       </div>
     </section>
 
-    <!-- 頁籤 3：電子報廣播 (Campaigns / 手動群發) -->
+    <!-- 頁籤 3：廣播 (Campaigns / 手動群發) -->
     <section id="tab-campaigns" class="hidden space-y-6">
       <div class="bg-white border border-stone-200 rounded-xl p-6 shadow-xs flex flex-col space-y-5">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-stone-100">
           <div>
-            <h2 class="text-sm font-bold text-stone-900">建立電子報廣播信 (Campaign Broadcast)</h2>
-            <p class="text-xs text-stone-500 mt-0.5">選擇受眾名單或分類標籤，撰寫並透過 ToSend REST API 一次性發送廣播信件</p>
-          </div>
+            <h2 class="text-sm font-bold text-stone-900">建立廣播信 (Campaign Broadcast)</h2>
+                      </div>
           <div class="flex items-center gap-2">
             <button onclick="sendCampaignTestEmail()" class="text-xs bg-stone-100 hover:bg-stone-200 text-stone-700 font-medium px-3 py-1.5 rounded transition">
-              發送單封測試信
+              測試信
             </button>
             <button onclick="executeCampaignBroadcast()" id="btn-campaign-send" class="text-xs bg-stone-900 hover:bg-stone-800 text-white font-medium px-4 py-1.5 rounded transition">
-              確認立即群發
+              立即群發
             </button>
           </div>
         </div>
@@ -264,15 +276,13 @@ export const adminConsoleHtml = `<!DOCTYPE html>
             <label class="flex items-start gap-2 p-3 bg-white rounded border border-stone-300 cursor-pointer hover:border-stone-900 transition">
               <input type="radio" name="audience_type" value="all" checked onchange="toggleAudienceFilter(this.value)" class="mt-0.5" />
               <div>
-                <span class="font-medium text-stone-900 block">全部有效聯絡人</span>
-                <span class="text-[11px] text-stone-500">發送給 D1 資料庫中所有啟用狀態的名單</span>
+                <span class="font-medium text-stone-900 block">全部聯絡人</span>
               </div>
             </label>
             <label class="flex items-start gap-2 p-3 bg-white rounded border border-stone-300 cursor-pointer hover:border-stone-900 transition">
               <input type="radio" name="audience_type" value="tag" onchange="toggleAudienceFilter(this.value)" class="mt-0.5" />
               <div>
-                <span class="font-medium text-stone-900 block">指定標籤群體</span>
-                <span class="text-[11px] text-stone-500">僅發送給特定標籤分類（例如 VIP 客戶）</span>
+                <span class="font-medium text-stone-900 block">指定標籤</span>
               </div>
             </label>
           </div>
@@ -321,19 +331,19 @@ export const adminConsoleHtml = `<!DOCTYPE html>
             <button type="button" onclick="execCampaignCmd('italic')" title="斜體" class="w-7 h-7 flex items-center justify-center rounded hover:bg-stone-200 text-stone-700 italic">I</button>
             <button type="button" onclick="execCampaignCmd('underline')" title="底線" class="w-7 h-7 flex items-center justify-center rounded hover:bg-stone-200 text-stone-700 underline">U</button>
             <span class="w-px h-4 bg-stone-300 mx-1"></span>
-            <button type="button" onclick="execCampaignFormatBlock('h2')" class="px-2 py-1 rounded hover:bg-stone-200 text-stone-700 font-bold text-[11px]">H2 標題</button>
-            <button type="button" onclick="execCampaignFormatBlock('h3')" class="px-2 py-1 rounded hover:bg-stone-200 text-stone-700 font-bold text-[11px]">H3 標題</button>
-            <button type="button" onclick="execCampaignFormatBlock('p')" class="px-2 py-1 rounded hover:bg-stone-200 text-stone-700 text-[11px]">一般段落</button>
+            <button type="button" onclick="execCampaignFormatBlock('h2')" class="px-2 py-1 rounded hover:bg-stone-200 text-stone-700 font-bold text-[11px]">H2</button>
+            <button type="button" onclick="execCampaignFormatBlock('h3')" class="px-2 py-1 rounded hover:bg-stone-200 text-stone-700 font-bold text-[11px]">H3</button>
+            <button type="button" onclick="execCampaignFormatBlock('p')" class="px-2 py-1 rounded hover:bg-stone-200 text-stone-700 text-[11px]">P</button>
             <span class="w-px h-4 bg-stone-300 mx-1"></span>
             <button type="button" onclick="execCampaignCmd('insertUnorderedList')" class="px-2 py-1 rounded hover:bg-stone-200 text-stone-700 text-[11px]">項目清單</button>
             <button type="button" onclick="execCampaignCmd('insertHorizontalRule')" class="px-2 py-1 rounded hover:bg-stone-200 text-stone-700 text-[11px]">分隔線</button>
             <span class="w-px h-4 bg-stone-300 mx-1"></span>
             <button type="button" onclick="insertCampaignCtaButton()" class="px-2.5 py-1 rounded bg-stone-900 hover:bg-stone-800 text-white font-medium text-[11px] transition">
-              + 插入行動按鈕 (CTA)
+              CTA 按鈕
             </button>
             <div class="relative inline-block ml-auto">
               <select onchange="insertCampaignVariable(this.value); this.selectedIndex=0;" class="text-[11px] font-medium bg-white border border-stone-300 text-stone-700 px-2 py-1 rounded focus:outline-none focus:border-stone-900">
-                <option value="">+ 插入動態變數</option>
+                <option value="">＋變數</option>
                 <option value="{{name}}">{{name}} 訂閱者姓名</option>
                 <option value="{{email}}">{{email}} 電子信箱</option>
                 <option value="{{unsubscribeUrl}}">{{unsubscribeUrl}} 退訂網址</option>
@@ -350,7 +360,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
                 class="bg-white p-8 rounded-lg shadow-xs border border-stone-200 min-h-[340px] text-sm text-stone-800 leading-relaxed focus:outline-none"
               >
                 <p>嗨 <strong>{{name}}</strong>，</p>
-                <p>這是一封特別發送給我們精選訂閱社群的電子報廣播信。</p>
+                <p>這是一封特別發送給我們精選訂閱社群的廣播信。</p>
                 <p>本月份我們整理了三篇最實用的自動發信實踐策略，協助你將發信到達率提升至 99% 以上，同時免除任何複雜維護負擔。</p>
                 <p style="text-align: center; margin: 24px 0;">
                   <a href="https://example.com/digest" style="background-color: #1c1917; color: #ffffff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600; display: inline-block;">閱讀完整特輯指南</a>
@@ -367,28 +377,28 @@ export const adminConsoleHtml = `<!DOCTYPE html>
       </div>
     </section>
 
-    <!-- 頁籤 4：自動跟進排程 (Automations / 新訂閱旅程) -->
+    <!-- 頁籤 4：排程 (Automations / 新訂閱旅程) -->
     <section id="tab-automations" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6">
       <aside class="lg:col-span-4 space-y-3">
-        <div class="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-2">自動跟進排程旅程關卡</div>
+        <div class="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-2">排程旅程關卡</div>
         <div onclick="selectAutomationStep(1)" id="step-item-1" class="p-3.5 rounded-lg border border-stone-900 bg-white shadow-xs cursor-pointer transition">
           <div class="flex items-center justify-between text-xs mb-1">
             <span class="font-mono font-bold text-stone-900">關卡 01</span>
-            <span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">即時發送 (0h)</span>
+            <span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">即時</span>
           </div>
           <div class="text-sm font-medium text-stone-900 truncate" id="step-title-1">歡迎加入：第一份指南與起步清單</div>
         </div>
         <div onclick="selectAutomationStep(2)" id="step-item-2" class="p-3.5 rounded-lg border border-stone-200 bg-stone-50 hover:bg-white cursor-pointer transition">
           <div class="flex items-center justify-between text-xs mb-1">
             <span class="font-mono font-bold text-stone-500">關卡 02</span>
-            <span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-stone-100 text-stone-600 border border-stone-200">訂閱後 24 小時</span>
+            <span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-stone-100 text-stone-600 border border-stone-200">＋24h</span>
           </div>
           <div class="text-sm font-medium text-stone-700 truncate" id="step-title-2">第 2 天跟進：核心觀念與最常見盲區</div>
         </div>
         <div onclick="selectAutomationStep(3)" id="step-item-3" class="p-3.5 rounded-lg border border-stone-200 bg-stone-50 hover:bg-white cursor-pointer transition">
           <div class="flex items-center justify-between text-xs mb-1">
             <span class="font-mono font-bold text-stone-500">關卡 03</span>
-            <span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-stone-100 text-stone-600 border border-stone-200">訂閱後 72 小時</span>
+            <span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-stone-100 text-stone-600 border border-stone-200">＋72h</span>
           </div>
           <div class="text-sm font-medium text-stone-700 truncate" id="step-title-3">第 4 天深度解析：實戰案例分享</div>
         </div>
@@ -398,14 +408,13 @@ export const adminConsoleHtml = `<!DOCTYPE html>
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-stone-100">
           <div>
             <h2 class="text-sm font-bold text-stone-900" id="auto-editor-title">編輯關卡 01：歡迎信件</h2>
-            <p class="text-xs text-stone-500 mt-0.5">新訂閱者註冊後，將依排程時間由 Cloudflare Worker 自動派送</p>
           </div>
           <div class="flex items-center gap-2">
             <button onclick="sendAutoTestEmail()" class="text-xs bg-stone-100 hover:bg-stone-200 text-stone-700 font-medium px-3 py-1.5 rounded transition">
-              發送單封測試信
+              測試信
             </button>
             <button onclick="saveAutomationStep()" id="btn-save-auto" class="text-xs bg-stone-900 hover:bg-stone-800 text-white font-medium px-4 py-1.5 rounded transition">
-              儲存關卡設定
+              儲存
             </button>
           </div>
         </div>
@@ -449,19 +458,19 @@ export const adminConsoleHtml = `<!DOCTYPE html>
             <button type="button" onclick="execAutoCmd('italic')" title="斜體" class="w-7 h-7 flex items-center justify-center rounded hover:bg-stone-200 text-stone-700 italic">I</button>
             <button type="button" onclick="execAutoCmd('underline')" title="底線" class="w-7 h-7 flex items-center justify-center rounded hover:bg-stone-200 text-stone-700 underline">U</button>
             <span class="w-px h-4 bg-stone-300 mx-1"></span>
-            <button type="button" onclick="execAutoFormatBlock('h2')" class="px-2 py-1 rounded hover:bg-stone-200 text-stone-700 font-bold text-[11px]">H2 標題</button>
-            <button type="button" onclick="execAutoFormatBlock('h3')" class="px-2 py-1 rounded hover:bg-stone-200 text-stone-700 font-bold text-[11px]">H3 標題</button>
-            <button type="button" onclick="execAutoFormatBlock('p')" class="px-2 py-1 rounded hover:bg-stone-200 text-stone-700 text-[11px]">一般段落</button>
+            <button type="button" onclick="execAutoFormatBlock('h2')" class="px-2 py-1 rounded hover:bg-stone-200 text-stone-700 font-bold text-[11px]">H2</button>
+            <button type="button" onclick="execAutoFormatBlock('h3')" class="px-2 py-1 rounded hover:bg-stone-200 text-stone-700 font-bold text-[11px]">H3</button>
+            <button type="button" onclick="execAutoFormatBlock('p')" class="px-2 py-1 rounded hover:bg-stone-200 text-stone-700 text-[11px]">P</button>
             <span class="w-px h-4 bg-stone-300 mx-1"></span>
             <button type="button" onclick="execAutoCmd('insertUnorderedList')" class="px-2 py-1 rounded hover:bg-stone-200 text-stone-700 text-[11px]">項目清單</button>
             <button type="button" onclick="execAutoCmd('insertHorizontalRule')" class="px-2 py-1 rounded hover:bg-stone-200 text-stone-700 text-[11px]">分隔線</button>
             <span class="w-px h-4 bg-stone-300 mx-1"></span>
             <button type="button" onclick="insertAutoCtaButton()" class="px-2.5 py-1 rounded bg-stone-900 hover:bg-stone-800 text-white font-medium text-[11px] transition">
-              + 插入行動按鈕 (CTA)
+              CTA 按鈕
             </button>
             <div class="relative inline-block ml-auto">
               <select onchange="insertAutoVariable(this.value); this.selectedIndex=0;" class="text-[11px] font-medium bg-white border border-stone-300 text-stone-700 px-2 py-1 rounded focus:outline-none focus:border-stone-900">
-                <option value="">+ 插入動態變數</option>
+                <option value="">＋變數</option>
                 <option value="{{name}}">{{name}} 訂閱者姓名</option>
                 <option value="{{email}}">{{email}} 電子信箱</option>
                 <option value="{{unsubscribeUrl}}">{{unsubscribeUrl}} 退訂網址</option>
@@ -504,7 +513,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
           <label class="block text-xs font-semibold text-stone-700 mb-1">著陸頁副文案</label>
           <textarea id="set-landing_intro" rows="3" placeholder="一句話介紹你的電子報..." class="w-full px-3 py-2 border border-stone-300 rounded text-sm focus:outline-none focus:border-stone-900"></textarea>
         </div>
-        <button onclick="saveSettings(['site_domain','landing_title','landing_intro'])" class="text-xs bg-stone-900 hover:bg-stone-800 text-white font-medium px-4 py-1.5 rounded transition">儲存基本設定</button>
+        <button onclick="saveSettings(['site_domain','landing_title','landing_intro'])" class="text-xs bg-stone-900 hover:bg-stone-800 text-white font-medium px-4 py-1.5 rounded transition">儲存</button>
       </div>
 
       <div class="bg-white p-6 rounded-xl border border-stone-200 shadow-xs space-y-5">
@@ -528,8 +537,8 @@ export const adminConsoleHtml = `<!DOCTYPE html>
           <p class="text-[11px] text-stone-400 mt-1">金鑰以 AES-256 加密存放；按下「驗證並儲存」會先寄測試信到上方信箱，成功才寫入。</p>
         </div>
         <div class="flex flex-wrap gap-2">
-          <button onclick="saveSettings(['tosend_from_name','tosend_from_email'])" class="text-xs bg-stone-900 hover:bg-stone-800 text-white font-medium px-4 py-1.5 rounded transition">儲存寄件人</button>
-          <button onclick="verifyAndSaveTosend()" id="btn-verify-tosend" class="text-xs bg-emerald-700 hover:bg-emerald-800 text-white font-medium px-4 py-1.5 rounded transition">驗證並儲存金鑰</button>
+          <button onclick="saveSettings(['tosend_from_name','tosend_from_email'])" class="text-xs bg-stone-900 hover:bg-stone-800 text-white font-medium px-4 py-1.5 rounded transition">儲存</button>
+          <button onclick="verifyAndSaveTosend()" id="btn-verify-tosend" class="text-xs bg-emerald-700 hover:bg-emerald-800 text-white font-medium px-4 py-1.5 rounded transition">驗證金鑰</button>
         </div>
         <p id="settings-msg" class="text-xs hidden"></p>
       </div>
@@ -556,9 +565,8 @@ export const adminConsoleHtml = `<!DOCTYPE html>
     <div class="bg-white rounded-xl max-w-lg w-full p-6 shadow-xl border border-stone-200 space-y-4">
       <div class="flex items-center justify-between pb-3 border-b border-stone-100">
         <div>
-          <h3 class="text-sm font-bold text-stone-900">個別發送郵件 (Direct Send)</h3>
-          <p class="text-xs text-stone-500 mt-0.5">單獨寄送一封客製化信件給指定聯絡人</p>
-        </div>
+          <h3 class="text-sm font-bold text-stone-900">個別發信</h3>
+                  </div>
         <button onclick="closeDirectSendModal()" class="text-stone-400 hover:text-stone-700 text-lg leading-none">&times;</button>
       </div>
 
@@ -632,6 +640,17 @@ export const adminConsoleHtml = `<!DOCTYPE html>
     function closeMobileMenu() {
       document.getElementById('mobile-drawer').classList.add('hidden');
     }
+
+    // 電腦版側邊欄收合（記住狀態）
+    function toggleSidebar() {
+      const collapsed = document.getElementById('sidebar').classList.toggle('sidebar-collapsed');
+      try { localStorage.setItem('haoji_sidebar_collapsed', collapsed ? '1' : '0'); } catch (e) {}
+    }
+    try {
+      if (localStorage.getItem('haoji_sidebar_collapsed') === '1') {
+        document.getElementById('sidebar').classList.add('sidebar-collapsed');
+      }
+    } catch (e) {}
 
     // 聯絡人頁「更多」三點選單（點外面自動收合）
     function toggleContactsMoreMenu(e) {
@@ -745,7 +764,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
         showSettingsMsg('✓ 測試信已寄出，金鑰已加密儲存', true);
         loadSettingsData();
       } finally {
-        btn.disabled = false; btn.innerText = '驗證並儲存金鑰';
+        btn.disabled = false; btn.innerText = '驗證金鑰';
       }
     }
 
@@ -773,7 +792,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
       else { showSettingsMsg('修改失敗：' + (d.error || '未知原因'), false); }
     }
 
-    // 1. 數據總覽 API 串接
+    // 1. 總覽 API 串接
     async function loadDashboardStats() {
       try {
         const res = await apiFetch('/api/admin/stats');
@@ -830,7 +849,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
       }
     }
 
-    // 2. 聯絡人名單 API 串接
+    // 2. 名單 API 串接
     let allContactsList = [];
     async function loadContactsData() {
       const tbody = document.getElementById('contacts-tbody');
@@ -865,8 +884,8 @@ export const adminConsoleHtml = `<!DOCTYPE html>
       const tbody = document.getElementById('contacts-tbody');
       const cardsEl = document.getElementById('contacts-cards');
       if (!list || list.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="py-4 text-center text-stone-400">目前 D1 資料庫尚無聯絡人名單，可從前台訂閱、匯入 CSV 或點選右上方新增</td></tr>';
-        cardsEl.innerHTML = '<div class="py-4 text-center text-stone-400 text-sm">目前尚無聯絡人名單<br>可從前台訂閱、匯入 CSV 或點選「新增聯絡人」</div>';
+        tbody.innerHTML = '<tr><td colspan="6" class="py-4 text-center text-stone-400">目前 D1 資料庫尚無名單，可從前台訂閱、匯入 CSV 或點選右上方新增</td></tr>';
+        cardsEl.innerHTML = '<div class="py-4 text-center text-stone-400 text-sm">目前尚無名單<br>可從前台訂閱、匯入 CSV 或點選「新增」</div>';
         return;
       }
 
@@ -979,7 +998,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
       window.open('/api/admin/export', '_blank');
     }
 
-    // 手動新增聯絡人
+    // 手動新增
     async function promptNewSubscriber() {
       const email = prompt('請輸入新聯絡人 Email：');
       if (!email) return;
@@ -994,7 +1013,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
         });
         const d = await res.json();
         if (res.ok && d.success) {
-          alert('成功新增聯絡人至 D1 資料庫！');
+          alert('成功新增至 D1 資料庫！');
           loadContactsData();
           loadDashboardStats();
         } else {
@@ -1082,7 +1101,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
         return;
       }
 
-      const targetDesc = (aud === 'tag') ? ('指定標籤：' + tag) : '全部有效聯絡人';
+      const targetDesc = (aud === 'tag') ? ('指定標籤：' + tag) : '全部聯絡人';
       if (!confirm('確定要立即透過 ToSend API 群發廣播信給【' + targetDesc + '】嗎？')) {
         return;
       }
@@ -1115,7 +1134,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
         alert('群發連線失敗：請檢查伺服器');
       } finally {
         btn.disabled = false;
-        btn.innerText = '確認立即群發';
+        btn.innerText = '立即群發';
       }
     }
 
@@ -1144,7 +1163,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
       }
     }
 
-    // 4. 自動跟進排程 API 串接
+    // 4. 排程 API 串接
     let automationsDbList = {};
     let activeAutoStep = 1;
 
@@ -1237,7 +1256,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
         alert('儲存失敗：無法連線至 Worker');
       } finally {
         btn.disabled = false;
-        btn.innerText = '儲存關卡設定';
+        btn.innerText = '儲存';
       }
     }
 
@@ -1270,7 +1289,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
     async function triggerCronExecution() {
       const btn = document.getElementById('btn-trigger-cron');
       btn.disabled = true;
-      btn.innerText = '檢查中...';
+      document.getElementById('btn-trigger-cron-label').innerText = '檢查中...';
       try {
         const res = await apiFetch('/api/admin/trigger-cron', { method: 'POST' });
         const d = await res.json();
@@ -1284,7 +1303,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
         alert('排程觸發連線失敗');
       } finally {
         btn.disabled = false;
-        btn.innerText = '執行單次排程派送';
+        document.getElementById('btn-trigger-cron-label').innerText = '執行排程';
       }
     }
 
@@ -1358,7 +1377,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
       document.execCommand('insertHTML', false, btnHtml);
     }
 
-    // 編輯器控制：自動跟進排程
+    // 編輯器控制：排程
     let autoEditorMode = 'visual';
     function switchAutoEditorMode(mode) {
       autoEditorMode = mode;

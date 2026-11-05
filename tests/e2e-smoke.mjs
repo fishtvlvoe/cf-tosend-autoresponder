@@ -52,19 +52,16 @@ await page.click('#tab-btn-settings');
 await page.waitForTimeout(500);
 await page.fill('#set-site_domain', 'e2e.example.com');
 await page.fill('#set-landing_title', 'E2E 測試電子報');
-const btns = await page.$$('button:has-text("儲存基本設定")');
-if (btns.length) {
-  await btns[0].click();
-  await page.waitForTimeout(600);
-  const msg = await page.evaluate(() => document.getElementById('settings-msg')?.textContent || '');
-  check('設定存檔回饋', msg.includes('已儲存'));
-}
+await page.click('#tab-settings button:has-text("儲存")');
+await page.waitForTimeout(600);
+const msg = await page.evaluate(() => document.getElementById('settings-msg')?.textContent || '');
+check('設定存檔回饋', msg.includes('已儲存'));
 
 // 6. 名單頁：匯出按鈕存在、動態標籤選單存在
 await page.click('#tab-btn-contacts');
 await page.waitForTimeout(500);
 check('匯出 CSV 按鈕存在', (await page.$('text=匯出')) !== null);
-check('匯入 CSV 按鈕存在', (await page.$('text=匯入 CSV')) !== null);
+check('匯入按鈕存在', (await page.$('text=匯入')) !== null);
 
 // 7. 前台著陸頁：訂閱表單可用
 await page.goto(BASE + '/');

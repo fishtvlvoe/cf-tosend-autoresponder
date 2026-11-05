@@ -185,7 +185,7 @@ export function renderLoginPage(): Response {
       </button>
 
       <div class="text-center pt-2">
-        <a href="/" class="text-xs text-stone-400 hover:text-stone-600 transition">返回前台訂閱頁面</a>
+        <a href="/" class="text-xs text-stone-400 hover:text-stone-600 transition">返回前台</a>
       </div>
     </form>
 
@@ -203,7 +203,7 @@ export function renderLoginPage(): Response {
         <label for="confirmPassword" class="block text-xs font-semibold text-stone-700 mb-1.5">確認密碼</label>
         <input type="password" id="confirmPassword" placeholder="再輸入一次" class="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-stone-900" />
       </div>
-      <button type="submit" class="w-full bg-stone-900 hover:bg-stone-800 text-white font-medium py-2.5 rounded-lg text-sm transition shadow-sm">建立密碼並進入</button>
+      <button type="submit" class="w-full bg-stone-900 hover:bg-stone-800 text-white font-medium py-2.5 rounded-lg text-sm transition shadow-sm">建立密碼</button>
     </form>
   </main>
 
