@@ -203,8 +203,10 @@ export class DatabaseService {
     return this.updateSubscriber(id, { status: 'deleted' });
   }
 
-  /** 標籤清單（explode 正規化字串後 GROUP BY 即時計算） */
+  /** 標籤清單（優先讀獨立表；表為空時 fallback 解析字串） */
   async listTags(): Promise<{ name: string; count: number }[]> {
+    const rows = await this.listTagObjects();
+    if (rows.length > 0) return rows.map(r => ({ name: r.name, count: r.count }));
     const { results } = await this.db
       .prepare("SELECT tags FROM subscribers WHERE tags != '' AND status != 'deleted'")
       .all<{ tags: string }>();
@@ -377,5 +379,212 @@ export class DatabaseService {
   /** 刪除設定（忘記密碼救濟、金鑰重設用） */
   async deleteSetting(key: string): Promise<void> {
     await this.db.prepare('DELETE FROM settings WHERE key = ?').bind(key).run();
+  }
+
+  // ── Lists / Tags 獨立表（SR admin-accounts-lists-tags） ────────
+
+  /** 標籤色盤：建立時自動輪替（對應 DESIGN.md 馬卡龍色盤） */
+  static readonly TAG_COLORS = ['green', 'blue', 'yellow', 'red', 'purple', 'pink', 'orange', 'gray'];
+
+  /**
+   * 惰性遷移：把 subscribers.tags 字串回填到 tags / subscriber_tags（只跑一次）。
+   * 顏色依首次出現順序輪替色盤。
+   */
+  async ensureListsTagsMigrated(): Promise<void> {
+    const flag = await this.getSetting('lists_tags_migrated');
+    if (flag?.value === '1') return;
+
+    const { results } = await this.db
+      .prepare("SELECT id, tags FROM subscribers WHERE tags != ''")
+      .all<{ id: number; tags: string }>();
+
+    let colorIdx = 0;
+    const colorOf = new Map<string, string>();
+    for (const row of results) {
+      for (const raw of row.tags.split(';')) {
+        const name = raw.trim();
+        if (!name) continue;
+        if (!colorOf.has(name)) {
+          colorOf.set(name, DatabaseService.TAG_COLORS[colorIdx % DatabaseService.TAG_COLORS.length]);
+          colorIdx++;
+        }
+        await this.db
+          .prepare('INSERT OR IGNORE INTO tags (name, color) VALUES (?, ?)')
+          .bind(name, colorOf.get(name))
+          .run();
+        const tag = await this.db.prepare('SELECT id FROM tags WHERE name = ?').bind(name).first<{ id: number }>();
+        if (tag) {
+          await this.db
+            .prepare('INSERT OR IGNORE INTO subscriber_tags (subscriber_id, tag_id) VALUES (?, ?)')
+            .bind(row.id, tag.id)
+            .run();
+        }
+      }
+    }
+    await this.setSetting('lists_tags_migrated', '1');
+  }
+
+  /** 管理 API：名單清單（含人數） */
+  async listLists(): Promise<{ id: number; name: string; description: string; count: number }[]> {
+    const { results } = await this.db.prepare(`
+      SELECT l.id, l.name, l.description,
+        (SELECT COUNT(*) FROM subscriber_lists sl WHERE sl.list_id = l.id) AS count
+      FROM lists l ORDER BY l.id ASC
+    `).all();
+    return results as any[];
+  }
+
+  async createList(name: string, description = ''): Promise<number> {
+    const res = await this.db
+      .prepare('INSERT INTO lists (name, description) VALUES (?, ?)')
+      .bind(name.trim(), description)
+      .run();
+    return res.meta.last_row_id as number;
+  }
+
+  async renameList(id: number, name: string): Promise<boolean> {
+    const res = await this.db.prepare('UPDATE lists SET name = ? WHERE id = ?').bind(name.trim(), id).run();
+    return (res.meta.changes ?? 0) > 0;
+  }
+
+  /** 刪除名單（只移除歸屬，不刪聯絡人） */
+  async deleteList(id: number): Promise<boolean> {
+    await this.db.prepare('DELETE FROM subscriber_lists WHERE list_id = ?').bind(id).run();
+    const res = await this.db.prepare('DELETE FROM lists WHERE id = ?').bind(id).run();
+    return (res.meta.changes ?? 0) > 0;
+  }
+
+  /** 管理 API：標籤清單（含人數與顏色） */
+  async listTagObjects(): Promise<{ id: number; name: string; color: string; count: number }[]> {
+    const { results } = await this.db.prepare(`
+      SELECT t.id, t.name, t.color,
+        (SELECT COUNT(*) FROM subscriber_tags st WHERE st.tag_id = t.id) AS count
+      FROM tags t ORDER BY t.id ASC
+    `).all();
+    return results as any[];
+  }
+
+  /** 依名稱找或建標籤（自動輪替顏色） */
+  async findOrCreateTag(name: string): Promise<number> {
+    const clean = name.trim();
+    const existing = await this.db.prepare('SELECT id FROM tags WHERE name = ?').bind(clean).first<{ id: number }>();
+    if (existing) return existing.id;
+    const count = await this.db.prepare('SELECT COUNT(*) AS n FROM tags').first<{ n: number }>();
+    const color = DatabaseService.TAG_COLORS[(count?.n ?? 0) % DatabaseService.TAG_COLORS.length];
+    const res = await this.db
+      .prepare('INSERT INTO tags (name, color) VALUES (?, ?)')
+      .bind(clean, color)
+      .run();
+    return res.meta.last_row_id as number;
+  }
+
+  async renameTag(id: number, name: string): Promise<boolean> {
+    const res = await this.db.prepare('UPDATE tags SET name = ? WHERE id = ?').bind(name.trim(), id).run();
+    return (res.meta.changes ?? 0) > 0;
+  }
+
+  async setTagColor(id: number, color: string): Promise<boolean> {
+    const res = await this.db.prepare('UPDATE tags SET color = ? WHERE id = ?').bind(color, id).run();
+    return (res.meta.changes ?? 0) > 0;
+  }
+
+  /** 刪除標籤（同時從所有聯絡人撕掉） */
+  async deleteTag(id: number): Promise<boolean> {
+    await this.db.prepare('DELETE FROM subscriber_tags WHERE tag_id = ?').bind(id).run();
+    const res = await this.db.prepare('DELETE FROM tags WHERE id = ?').bind(id).run();
+    return (res.meta.changes ?? 0) > 0;
+  }
+
+  /** 覆寫某聯絡人的名單歸屬 */
+  async setSubscriberLists(subscriberId: number, listIds: number[]): Promise<void> {
+    await this.db.prepare('DELETE FROM subscriber_lists WHERE subscriber_id = ?').bind(subscriberId).run();
+    for (const listId of listIds) {
+      await this.db
+        .prepare('INSERT OR IGNORE INTO subscriber_lists (subscriber_id, list_id) VALUES (?, ?)')
+        .bind(subscriberId, listId)
+        .run();
+    }
+  }
+
+  /** 覆寫某聯絡人的標籤（依名稱 find-or-create） */
+  async setSubscriberTagsByName(subscriberId: number, names: string[]): Promise<void> {
+    await this.db.prepare('DELETE FROM subscriber_tags WHERE subscriber_id = ?').bind(subscriberId).run();
+    for (const name of names) {
+      if (!name.trim()) continue;
+      const tagId = await this.findOrCreateTag(name);
+      await this.db
+        .prepare('INSERT OR IGNORE INTO subscriber_tags (subscriber_id, tag_id) VALUES (?, ?)')
+        .bind(subscriberId, tagId)
+        .run();
+    }
+  }
+
+  /** 名單＋標籤一起覆寫，並同步 legacy tags 字串（dual-write 向後相容） */
+  async setSubscriberAssociations(
+    subscriberId: number,
+    lists: { listIds?: number[]; tagNames?: string[] }
+  ): Promise<void> {
+    if (lists.listIds !== undefined) await this.setSubscriberLists(subscriberId, lists.listIds);
+    if (lists.tagNames !== undefined) {
+      await this.setSubscriberTagsByName(subscriberId, lists.tagNames);
+      const clean = normalizeTags(lists.tagNames.join(';'));
+      await this.db
+        .prepare('UPDATE subscribers SET tags = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+        .bind(clean, subscriberId)
+        .run();
+    }
+  }
+
+  /** 取得聯絡人的名單歸屬 */
+  async getSubscriberLists(subscriberId: number): Promise<{ id: number; name: string }[]> {
+    const { results } = await this.db.prepare(`
+      SELECT l.id, l.name FROM subscriber_lists sl
+      JOIN lists l ON l.id = sl.list_id
+      WHERE sl.subscriber_id = ? ORDER BY l.id
+    `).bind(subscriberId).all();
+    return results as any[];
+  }
+
+  /** 取得聯絡人的標籤（含顏色） */
+  async getSubscriberTags(subscriberId: number): Promise<{ id: number; name: string; color: string }[]> {
+    const { results } = await this.db.prepare(`
+      SELECT t.id, t.name, t.color FROM subscriber_tags st
+      JOIN tags t ON t.id = st.tag_id
+      WHERE st.subscriber_id = ? ORDER BY t.id
+    `).bind(subscriberId).all();
+    return results as any[];
+  }
+
+  /** 列出所有聯絡人，附上 lists/tags 陣列（管理後台一次載入） */
+  async listSubscribersWithAssociations(limit = 500): Promise<any[]> {
+    const subs = await this.listSubscribers(limit);
+    const { results: sl } = await this.db.prepare(`
+      SELECT sl.subscriber_id, l.id, l.name FROM subscriber_lists sl JOIN lists l ON l.id = sl.list_id
+    `).all();
+    const { results: st } = await this.db.prepare(`
+      SELECT st.subscriber_id, t.id, t.name, t.color FROM subscriber_tags st JOIN tags t ON t.id = st.tag_id
+    `).all();
+    const listMap = new Map<number, any[]>(); const tagMap = new Map<number, any[]>();
+    for (const r of sl as any[]) { if (!listMap.has(r.subscriber_id)) listMap.set(r.subscriber_id, []); listMap.get(r.subscriber_id)!.push({ id: r.id, name: r.name }); }
+    for (const r of st as any[]) { if (!tagMap.has(r.subscriber_id)) tagMap.set(r.subscriber_id, []); tagMap.get(r.subscriber_id)!.push({ id: r.id, name: r.name, color: r.color }); }
+    return subs.map(s => ({ ...s, lists: listMap.get(s.id) ?? [], tags_arr: tagMap.get(s.id) ?? [] }));
+  }
+
+  /** 依「名單聯集＋標籤要有／排除」取有效訂閱者（廣播受眾） */
+  async getActiveSubscribersForAudience(filter: {
+    listIds?: number[];
+    includeTagIds?: number[];
+    excludeTagIds?: number[];
+  }): Promise<Subscriber[]> {
+    const subs = await this.listSubscribersWithAssociations(100000);
+    return subs.filter(s => {
+      if (s.status !== 'active') return false;
+      const subListIds = (s.lists as any[]).map(l => l.id);
+      const subTagIds = (s.tags_arr as any[]).map(t => t.id);
+      if (filter.listIds?.length && !filter.listIds.some(id => subListIds.includes(id))) return false;
+      if (filter.includeTagIds?.length && !filter.includeTagIds.every(id => subTagIds.includes(id))) return false;
+      if (filter.excludeTagIds?.length && filter.excludeTagIds.some(id => subTagIds.includes(id))) return false;
+      return true;
+    });
   }
 }

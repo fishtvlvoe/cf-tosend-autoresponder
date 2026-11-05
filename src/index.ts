@@ -273,6 +273,9 @@ export default {
         return Response.json({ error: '未登入或工作階段已過期' }, { status: 401 });
       }
 
+      // Lists/Tags 獨立表資料回填（幂等，只跑一次）
+      await dbService.ensureListsTagsMigrated();
+
       // ── settings：讀取（加密鍵永不回明文）────────────────
       if (url.pathname === '/api/admin/settings' && request.method === 'GET') {
         const out: Record<string, { value: string | null; set: boolean }> = {};
@@ -354,22 +357,73 @@ export default {
         }
       }
 
-      // AI: 列出名單
+      // AI: 列出名單（附 lists/tags 歸屬陣列）
       if (url.pathname === '/api/admin/subscribers' && request.method === 'GET') {
-        const list = await dbService.listSubscribers(100);
+        const list = await dbService.listSubscribersWithAssociations(500);
         return Response.json({ subscribers: list });
       }
 
-      // 標籤清單（explode + 計數，即時計算）
+      // 標籤清單（獨立表：id/name/color/count）
       if (url.pathname === '/api/admin/tags' && request.method === 'GET') {
-        const tags = await dbService.listTags();
+        const tags = await dbService.listTagObjects();
         return Response.json({ tags });
       }
 
-      // 編輯聯絡人（部分更新；tags 覆蓋式正規化）
+      // ── 名單（Lists）CRUD ───────────────────────────────
+      if (url.pathname === '/api/admin/lists' && request.method === 'GET') {
+        const lists = await dbService.listLists();
+        return Response.json({ lists });
+      }
+      if (url.pathname === '/api/admin/lists' && request.method === 'POST') {
+        const body = (await request.json().catch(() => ({}))) as { name?: string; description?: string };
+        if (!body.name?.trim()) return Response.json({ error: '請提供名單名稱' }, { status: 400 });
+        const id = await dbService.createList(body.name, body.description || '');
+        return Response.json({ success: true, id });
+      }
+      if (url.pathname === '/api/admin/lists' && request.method === 'PUT') {
+        const body = (await request.json().catch(() => ({}))) as { id?: number; name?: string };
+        if (!body.id || !body.name?.trim()) return Response.json({ error: '請提供 id 與新名稱' }, { status: 400 });
+        if (!(await dbService.renameList(body.id, body.name))) {
+          return Response.json({ error: '找不到該名單' }, { status: 404 });
+        }
+        return Response.json({ success: true });
+      }
+      if (url.pathname === '/api/admin/lists' && request.method === 'DELETE') {
+        const id = Number(url.searchParams.get('id'));
+        if (!id) return Response.json({ error: '請提供名單 id' }, { status: 400 });
+        await dbService.deleteList(id);
+        return Response.json({ success: true });
+      }
+
+      // ── 標籤（Tags）CRUD ────────────────────────────────
+      if (url.pathname === '/api/admin/tags' && request.method === 'POST') {
+        const body = (await request.json().catch(() => ({}))) as { name?: string; color?: string };
+        if (!body.name?.trim()) return Response.json({ error: '請提供標籤名稱' }, { status: 400 });
+        const id = await dbService.findOrCreateTag(body.name);
+        if (body.color) await dbService.setTagColor(id, body.color);
+        return Response.json({ success: true, id });
+      }
+      if (url.pathname === '/api/admin/tags' && request.method === 'PUT') {
+        const body = (await request.json().catch(() => ({}))) as { id?: number; name?: string; color?: string };
+        if (!body.id) return Response.json({ error: '請提供標籤 id' }, { status: 400 });
+        if (body.name !== undefined && !(await dbService.renameTag(body.id, body.name))) {
+          return Response.json({ error: '找不到該標籤' }, { status: 404 });
+        }
+        if (body.color) await dbService.setTagColor(body.id, body.color);
+        return Response.json({ success: true });
+      }
+      if (url.pathname === '/api/admin/tags' && request.method === 'DELETE') {
+        const id = Number(url.searchParams.get('id'));
+        if (!id) return Response.json({ error: '請提供標籤 id' }, { status: 400 });
+        await dbService.deleteTag(id);
+        return Response.json({ success: true });
+      }
+
+      // 編輯聯絡人（部分更新；tags 字串覆蓋式，listIds/tagNames 關聯覆蓋式）
       if (url.pathname === '/api/admin/subscribers' && request.method === 'PUT') {
         const body = (await request.json().catch(() => ({}))) as {
           id?: number; name?: string; tags?: string; status?: string;
+          listIds?: number[]; tagNames?: string[];
         };
         if (!body.id) {
           return Response.json({ error: '請提供聯絡人 id' }, { status: 400 });
@@ -377,7 +431,13 @@ export default {
         const ok = await dbService.updateSubscriber(body.id, {
           name: body.name, tags: body.tags, status: body.status,
         });
-        if (!ok) {
+        const hasAssoc = body.listIds !== undefined || body.tagNames !== undefined;
+        if (hasAssoc) {
+          await dbService.setSubscriberAssociations(body.id, {
+            listIds: body.listIds, tagNames: body.tagNames,
+          });
+        }
+        if (!ok && !hasAssoc) {
           return Response.json({ error: '找不到該聯絡人或無可更新欄位' }, { status: 404 });
         }
         return Response.json({ success: true });
@@ -546,9 +606,10 @@ export default {
           name: string;
           subject: string;
           content_html: string;
-          target_type: 'all' | 'tag' | 'manual';
+          target_type: 'all' | 'tag' | 'manual' | 'audience';
           target_tag?: string;
           manual_emails?: string[];
+          audience?: { listIds?: number[]; includeTagIds?: number[]; excludeTagIds?: number[] };
         };
 
         if (!body.subject || !body.content_html) {
@@ -556,7 +617,14 @@ export default {
         }
 
         let recipients: any[] = [];
-        if (body.target_type === 'tag') {
+        if (body.target_type === 'audience') {
+          // 名單聯集 ＋ 要有標籤（全部符合） － 排除標籤
+          recipients = await dbService.getActiveSubscribersForAudience({
+            listIds: body.audience?.listIds,
+            includeTagIds: body.audience?.includeTagIds,
+            excludeTagIds: body.audience?.excludeTagIds,
+          });
+        } else if (body.target_type === 'tag') {
           recipients = await dbService.getActiveSubscribersByTag(body.target_tag);
         } else {
           recipients = await dbService.getActiveSubscribersByTag('all');
@@ -645,12 +713,14 @@ export default {
         });
       }
 
-      // 8. 後台新增聯絡人
+      // 8. 後台新增聯絡人（支援 listIds/tagNames 歸屬）
       if (url.pathname === '/api/admin/subscribers' && request.method === 'POST') {
         const body = (await request.json()) as {
           email: string;
           name?: string;
           tags?: string;
+          listIds?: number[];
+          tagNames?: string[];
         };
 
         if (!body.email || !body.email.includes('@')) {
@@ -658,6 +728,11 @@ export default {
         }
 
         const { subscriber, isNew } = await dbService.upsertSubscriber(body.email, body.name, body.tags);
+        if (body.listIds !== undefined || body.tagNames !== undefined) {
+          await dbService.setSubscriberAssociations(subscriber.id, {
+            listIds: body.listIds, tagNames: body.tagNames,
+          });
+        }
         return Response.json({ success: true, subscriber, isNew });
       }
     }
