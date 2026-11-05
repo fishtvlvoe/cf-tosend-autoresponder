@@ -10,7 +10,7 @@ const PASSWORD = 'e2e-pass-12345';
 const results = [];
 const check = (name, ok) => { results.push([name, ok]); console.log((ok ? '✓' : '✗') + ' ' + name); };
 
-const browser = await chromium.launch({ executablePath: '/Users/fishtv/Library/Caches/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-mac-arm64/chrome-headless-shell' });
+const browser = await chromium.launch();
 const ctx = await browser.newContext();
 const page = await ctx.newPage();
 const errors = [];
