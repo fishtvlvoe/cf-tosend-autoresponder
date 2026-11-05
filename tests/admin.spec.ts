@@ -624,3 +624,213 @@ describe('寄信可靠性（Phase 4：Gherkin 3/5/7/10）', () => {
     } finally { globalThis.fetch = originalFetch; }
   });
 });
+
+describe('Lists / Tags 獨立表（SR admin-accounts-lists-tags）', () => {
+  let sqlite: any;
+  let mockD1: any;
+  let env: any;
+  let ctx: any;
+
+  const ADMIN_PASSWORD = 'test-password-123';
+
+  async function login(): Promise<string> {
+    const res = await worker.fetch(
+      new Request('https://test-worker.workers.dev/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: ADMIN_PASSWORD }),
+      }),
+      env,
+      ctx
+    );
+    expect(res.status).toBe(200);
+    return res.headers.get('Set-Cookie')!.split(';')[0];
+  }
+
+  function auth(url: string, init: RequestInit = {}): Request {
+    return new Request('https://test-worker.workers.dev' + url, {
+      ...init,
+      headers: { 'Content-Type': 'application/json', Cookie: sessionCookie, ...(init.headers || {}) },
+    });
+  }
+
+  let sessionCookie = '';
+
+  beforeEach(async () => {
+    sqlite = new Database(':memory:');
+    sqlite.exec(readFileSync(join(__dirname, '../schema.sql'), 'utf-8'));
+    mockD1 = createMockD1Database(sqlite);
+    env = {
+      DB: mockD1,
+      HAOJI_SECRET: 'test-secret-for-encryption-32chars!',
+      TOSEND_API_KEY: 'test-tosend-key',
+      TOSEND_FROM_EMAIL: 'sender@example.com',
+      TOSEND_FROM_NAME: 'Test Sender',
+    };
+    sqlite.prepare('INSERT INTO settings (key, value) VALUES (?, ?)')
+      .run('admin_password_hash', await hashPassword(ADMIN_PASSWORD));
+    sqlite.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('onboarding_done', '1');
+    sqlite.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('tosend_from_email', 'sender@example.com');
+    sqlite.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('tosend_from_name', 'Test Sender');
+    sqlite.prepare('INSERT INTO settings (key, value) VALUES (?, ?)').run('site_domain', 'test-worker.workers.dev');
+    sqlite.prepare('INSERT INTO settings (key, value, is_encrypted) VALUES (?, ?, 1)')
+      .run('tosend_api_key', await encryptSecret('test-tosend-key', env.HAOJI_SECRET));
+    ctx = { waitUntil: vi.fn(), passThroughOnException: vi.fn() };
+    sessionCookie = await login();
+  });
+
+  it('名單 CRUD：建立→改名→刪除，且刪除只移除歸屬', async () => {
+    // 建立
+    let res = await worker.fetch(auth('/api/admin/lists', {
+      method: 'POST', body: JSON.stringify({ name: '課程A學員' }),
+    }), env, ctx);
+    expect(res.status).toBe(200);
+    const listId = (await res.json() as any).id;
+
+    // 讀取（含人數）
+    res = await worker.fetch(auth('/api/admin/lists'), env, ctx);
+    let lists = (await res.json() as any).lists;
+    expect(lists.map((l: any) => l.name)).toContain('課程A學員');
+
+    // 掛一個聯絡人驗證 count 與刪除行為
+    res = await worker.fetch(auth('/api/admin/subscribers', {
+      method: 'POST',
+      body: JSON.stringify({ email: 'a@example.com', name: '甲', listIds: [listId], tagNames: ['vip'] }),
+    }), env, ctx);
+    expect(res.status).toBe(200);
+
+    res = await worker.fetch(auth('/api/admin/lists'), env, ctx);
+    lists = (await res.json() as any).lists;
+    expect(lists.filter((l: any) => l.id === listId)[0].count).toBe(1);
+
+    // 改名
+    res = await worker.fetch(auth('/api/admin/lists', {
+      method: 'PUT', body: JSON.stringify({ id: listId, name: '課程B學員' }),
+    }), env, ctx);
+    expect(res.status).toBe(200);
+
+    // 刪除：名單消失、聯絡人還在、歸屬清空
+    res = await worker.fetch(auth('/api/admin/lists?id=' + listId, { method: 'DELETE' }), env, ctx);
+    expect(res.status).toBe(200);
+    expect(sqlite.prepare('SELECT * FROM lists WHERE id = ?').get(listId)).toBeUndefined();
+    expect(sqlite.prepare('SELECT * FROM subscriber_lists WHERE list_id = ?').get(listId)).toBeUndefined();
+    expect(sqlite.prepare("SELECT * FROM subscribers WHERE email = 'a@example.com'").get()).toBeDefined();
+  });
+
+  it('標籤 CRUD：自動輪替顏色、改名、刪除同步移除聯絡人身上的標籤', async () => {
+    let res = await worker.fetch(auth('/api/admin/tags', {
+      method: 'POST', body: JSON.stringify({ name: 'vip' }),
+    }), env, ctx);
+    expect(res.status).toBe(200);
+    const tagId = (await res.json() as any).id;
+
+    res = await worker.fetch(auth('/api/admin/tags'), env, ctx);
+    let tags = (await res.json() as any).tags;
+    const vip = tags.filter((t: any) => t.id === tagId)[0];
+    expect(vip.color).toBe('green'); // 色盤第一色
+    expect(vip.count).toBe(0);
+
+    // 聯絡人貼上標籤
+    await worker.fetch(auth('/api/admin/subscribers', {
+      method: 'POST', body: JSON.stringify({ email: 'b@example.com', tagNames: ['vip', '已購課'] }),
+    }), env, ctx);
+
+    // 第二個標籤自動輪替到色盤第二色
+    res = await worker.fetch(auth('/api/admin/tags'), env, ctx);
+    tags = (await res.json() as any).tags;
+    expect(tags.length).toBe(2);
+    expect(tags[1].color).toBe('blue');
+    expect(tags.filter((t: any) => t.name === 'vip')[0].count).toBe(1);
+
+    // 刪除 vip：聯絡人身上同步移除
+    res = await worker.fetch(auth('/api/admin/tags?id=' + tagId, { method: 'DELETE' }), env, ctx);
+    expect(res.status).toBe(200);
+    expect(sqlite.prepare('SELECT * FROM subscriber_tags WHERE tag_id = ?').get(tagId)).toBeUndefined();
+  });
+
+  it('聯絡人歸屬：新增與更新 listIds/tagNames，GET 回傳陣列', async () => {
+    let res = await worker.fetch(auth('/api/admin/lists', {
+      method: 'POST', body: JSON.stringify({ name: '電子報主名單' }),
+    }), env, ctx);
+    const listId = (await res.json() as any).id;
+
+    res = await worker.fetch(auth('/api/admin/subscribers', {
+      method: 'POST',
+      body: JSON.stringify({ email: 'c@example.com', name: '丙', listIds: [listId], tagNames: ['vip'] }),
+    }), env, ctx);
+    expect(res.status).toBe(200);
+
+    res = await worker.fetch(auth('/api/admin/subscribers'), env, ctx);
+    const subs = (await res.json() as any).subscribers;
+    const sub = subs.filter((s: any) => s.email === 'c@example.com')[0];
+    expect(sub.lists.map((l: any) => l.id)).toEqual([listId]);
+    expect(sub.tags_arr.map((t: any) => t.name)).toEqual(['vip']);
+    // dual-write：legacy tags 字串同步
+    expect(sub.tags).toContain('vip');
+
+    // 更新：換名單（清空 listIds）＋換標籤
+    res = await worker.fetch(auth('/api/admin/subscribers', {
+      method: 'PUT',
+      body: JSON.stringify({ id: sub.id, listIds: [], tagNames: ['冷名單'] }),
+    }), env, ctx);
+    expect(res.status).toBe(200);
+
+    res = await worker.fetch(auth('/api/admin/subscribers'), env, ctx);
+    const updated = (await res.json() as any).subscribers.filter((s: any) => s.email === 'c@example.com')[0];
+    expect(updated.lists).toEqual([]);
+    expect(updated.tags_arr.map((t: any) => t.name)).toEqual(['冷名單']);
+  });
+
+  it('廣播受眾：名單聯集＋要有標籤－排除標籤，只寄給符合的人', async () => {
+    // 建名單與聯絡人
+    const mkList = async (name: string) =>
+      (await (await worker.fetch(auth('/api/admin/lists', { method: 'POST', body: JSON.stringify({ name }) }), env, ctx)).json() as any).id;
+    const listA = await mkList('名單A');
+    const listB = await mkList('名單B');
+
+    const mkSub = (email: string, listIds: number[], tagNames: string[]) =>
+      worker.fetch(auth('/api/admin/subscribers', {
+        method: 'POST', body: JSON.stringify({ email, listIds, tagNames }),
+      }), env, ctx);
+    await mkSub('in@example.com', [listA], ['vip']);          // 應收到
+    await mkSub('also@example.com', [listB], ['vip']);        // 聯集：應收到
+    await mkSub('cold@example.com', [listA], ['vip', '冷名單']); // 被排除：不收到
+    await mkSub('plain@example.com', [listA], []);            // 沒有 vip：不收到
+
+    const tagRows = sqlite.prepare('SELECT id, name FROM tags').all();
+    const vipId = tagRows.filter((t: any) => t.name === 'vip')[0].id;
+    const coldId = tagRows.filter((t: any) => t.name === '冷名單')[0].id;
+
+    const originalFetch = globalThis.fetch;
+    const sentTo: string[] = [];
+    globalThis.fetch = vi.fn().mockImplementation((url: any, init: any) => {
+      if (typeof url === 'string' && url.includes('tosend')) {
+        sentTo.push(JSON.parse(init.body).to);
+      }
+      return Promise.resolve({ ok: true, status: 200, text: async () => '{"id":"m1"}', json: async () => ({ id: 'm1' }) });
+    });
+
+    try {
+      const res = await worker.fetch(auth('/api/admin/campaigns/send', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: '受眾測試',
+          subject: '受眾測試信',
+          content_html: '<p>hi</p>',
+          target_type: 'audience',
+          audience: { listIds: [listA, listB], includeTagIds: [vipId], excludeTagIds: [coldId] },
+        }),
+      }), env, ctx);
+      expect(res.status).toBe(200);
+      const data = await res.json() as any;
+      expect(data.total_targets).toBe(2);
+      expect(data.sent_success).toBe(2);
+
+      const campaign = sqlite.prepare("SELECT * FROM campaigns WHERE name = '受眾測試'").get();
+      expect(campaign.target_type).toBe('audience');
+      expect(campaign.sent_count).toBe(2);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
