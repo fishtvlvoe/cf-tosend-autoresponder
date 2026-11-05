@@ -430,12 +430,11 @@ export const adminConsoleHtml = `<!DOCTYPE html>
     <!-- 頁籤 4：排程 (Automations / 新訂閱旅程) -->
     <section id="tab-automations" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6">
       <aside class="lg:col-span-4 space-y-3" id="auto-list-pane">
-        <div class="text-xs font-semibold text-stone-500 uppercase tracking-wider">排程旅程關卡</div>
-        <input type="text" id="auto-step-search" placeholder="搜尋關卡（號碼或主旨）…" oninput="renderStepList()" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:border-stone-900" />
+        <div class="text-xs font-semibold text-stone-500 uppercase tracking-wider">排程信件</div>
         <div id="step-list" class="space-y-2 lg:max-h-[30rem] lg:overflow-y-auto lg:pr-1"></div>
         <button onclick="addAutomationStep()" class="w-full text-xs px-3 py-2 rounded-lg border border-dashed border-stone-300 text-stone-500 hover:border-stone-900 hover:text-stone-900 transition flex items-center justify-center gap-1">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
-          新增關卡
+          新增信件
         </button>
       </aside>
 
@@ -443,7 +442,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-stone-100">
           <div class="flex items-center gap-2">
             <button onclick="showAutoListPane()" class="lg:hidden text-xs px-2.5 py-1.5 rounded border border-stone-300 text-stone-600 hover:bg-stone-50 transition">← 返回</button>
-            <h2 class="text-sm font-bold text-stone-900" id="auto-editor-title">編輯關卡 01：歡迎信件</h2>
+            <h2 class="text-sm font-bold text-stone-900" id="auto-editor-title">編輯信件 01：歡迎信件</h2>
           </div>
           <div class="flex items-center gap-2">
             <button onclick="sendAutoTestEmail()" class="text-xs bg-stone-100 hover:bg-stone-200 text-stone-700 font-medium px-3 py-1.5 rounded transition">
@@ -464,7 +463,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
             <label class="block text-xs font-semibold text-stone-700 mb-1">啟用狀態</label>
             <select id="auto-select-active" class="w-full px-3 py-2 border border-stone-300 rounded text-sm focus:outline-none focus:border-stone-900">
               <option value="1">正常啟用 (進入自動排程)</option>
-              <option value="0">暫停發送 (略過此關卡)</option>
+              <option value="0">暫停發送 (略過此信件)</option>
             </select>
           </div>
         </div>
@@ -476,7 +475,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
 
         <div class="flex-1 flex flex-col space-y-2">
           <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <label class="text-xs font-semibold text-stone-700">關卡正文排版</label>
+            <label class="text-xs font-semibold text-stone-700">信件正文排版</label>
             <div class="flex items-center gap-3">
               <div class="flex items-center gap-1 bg-stone-100 p-0.5 rounded border border-stone-200 text-xs">
                 <button type="button" onclick="setAutoDeviceWidth('desktop')" id="btn-auto-device-desktop" class="px-2 py-0.5 rounded text-[11px] font-medium bg-white text-stone-900 shadow-2xs">桌面版 (600px)</button>
@@ -958,7 +957,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
             tbody.innerHTML = logs.map(l =>
               '<tr>' +
                 '<td class="py-2.5 font-mono">' + (l.subscriber_email || '--') + '</td>' +
-                '<td class="py-2.5">' + (l.sequence_id ? ('關卡 ' + (l.step_number || l.sequence_id)) : '個別/廣播信') + '</td>' +
+                '<td class="py-2.5">' + (l.sequence_id ? ('信件 ' + (l.step_number || l.sequence_id)) : '個別/廣播信') + '</td>' +
                 '<td class="py-2.5 font-sans">' + (l.sequence_subject || '--') + '</td>' +
                 '<td class="py-2.5"><span class="px-2 py-0.5 rounded text-[10px] ' + (l.status === 'sent' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200') + '">' + l.status + '</span></td>' +
                 '<td class="py-2.5 text-right text-stone-400 font-mono">' + (l.sent_at || '--') + '</td>' +
@@ -972,7 +971,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
                   '<span class="px-2 py-0.5 rounded text-[11px] shrink-0 ' + (l.status === 'sent' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700') + '">' + l.status + '</span>' +
                 '</div>' +
                 '<div class="text-sm text-stone-700">' + (l.sequence_subject || '--') + '</div>' +
-                '<div class="text-xs text-stone-400">' + (l.sequence_id ? ('關卡 ' + (l.step_number || l.sequence_id)) : '個別/廣播信') + ' · ' + (l.sent_at || '--') + '</div>' +
+                '<div class="text-xs text-stone-400">' + (l.sequence_id ? ('信件 ' + (l.step_number || l.sequence_id)) : '個別/廣播信') + ' · ' + (l.sent_at || '--') + '</div>' +
               '</div>'
             ).join('');
           }
@@ -1601,23 +1600,18 @@ export const adminConsoleHtml = `<!DOCTYPE html>
       return Object.keys(automationsDbList).map(Number).sort((a, b) => a - b);
     }
 
-    // 左側關卡選單：固定高度可捲動＋搜尋（號碼或主旨）
+    // 左側信件選單：固定高度內部捲動
     function renderStepList() {
       const box = document.getElementById('step-list');
       if (!box) return;
-      const q = (document.getElementById('auto-step-search').value || '').trim();
-      const steps = getAutoStepNumbers().filter(n => {
-        if (!q) return true;
-        const seq = automationsDbList[n];
-        return String(n) === q || String(n).indexOf(q) !== -1 || ((seq && seq.subject) || '').indexOf(q) !== -1;
-      });
+      const steps = getAutoStepNumbers();
       if (!steps.length) {
-        box.innerHTML = '<div class="py-4 text-center text-xs text-stone-400">' + (q ? '找不到符合的關卡' : '尚無關卡，點下方「新增關卡」') + '</div>';
+        box.innerHTML = '<div class="py-4 text-center text-xs text-stone-400">尚無信件，點下方「新增信件」</div>';
         return;
       }
       box.innerHTML = steps.map(n => {
         const seq = automationsDbList[n];
-        const label = '關卡 ' + String(n).padStart(2, '0');
+        const label = '信件 ' + String(n).padStart(2, '0');
         const delay = seq && Number(seq.delay_hours) > 0 ? ('＋' + seq.delay_hours + 'h') : '即時';
         const subject = (seq && seq.subject) || '（未命名）';
         const on = n === activeAutoStep;
@@ -1656,7 +1650,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
         content_html: '<p>嗨 <strong>{{name}}</strong>，</p><p>感謝你的訂閱！</p>'
       };
 
-      document.getElementById('auto-editor-title').innerText = '編輯關卡 ' + String(stepNum).padStart(2, '0') + (d.subject ? '：' + d.subject : '');
+      document.getElementById('auto-editor-title').innerText = '編輯信件 ' + String(stepNum).padStart(2, '0') + (d.subject ? '：' + d.subject : '');
       document.getElementById('auto-input-delay').value = d.delay_hours ?? 0;
       document.getElementById('auto-select-active').value = (d.is_active ?? 1).toString();
       document.getElementById('auto-input-subject').value = d.subject || '';
@@ -1710,7 +1704,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
         });
         const d = await res.json();
         if (res.ok && d.success) {
-          alert('關卡 ' + String(activeAutoStep).padStart(2, '0') + ' 已成功寫入 Cloudflare D1 資料庫！重新整理將持續保存。');
+          alert('信件 ' + String(activeAutoStep).padStart(2, '0') + ' 已成功寫入 Cloudflare D1 資料庫！重新整理將持續保存。');
           loadAutomationsData();
         } else {
           alert('儲存失敗：' + (d.error || '未知原因'));
@@ -1726,7 +1720,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
     async function sendAutoTestEmail() {
       const email = prompt('請輸入接收測試信的信箱：');
       if (!email) return;
-      const subj = '[關卡測試] ' + document.getElementById('auto-input-subject').value;
+      const subj = '[排程測試] ' + document.getElementById('auto-input-subject').value;
       const visualEl = document.getElementById('auto-visual-editor');
       const htmlEl = document.getElementById('auto-html-editor');
       const content = (autoEditorMode === 'visual') ? visualEl.innerHTML : htmlEl.value;
