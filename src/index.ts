@@ -277,6 +277,41 @@ export default {
       // Lists/Tags 獨立表資料回填（幂等，只跑一次）
       await dbService.ensureListsTagsMigrated();
 
+      // ── 寄測試信：用已儲存的設定寄一封到指定信箱 ───────────
+      if (url.pathname === '/api/admin/send-test' && request.method === 'POST') {
+        if (!(await isOnboardingDone(dbService))) {
+          return settingsIncompleteResponse();
+        }
+        const body = (await request.json().catch(() => ({}))) as { to?: string };
+        const to = (body.to || '').trim();
+        if (!to || !to.includes('@')) {
+          return Response.json({ error: '請提供收件 Email' }, { status: 400 });
+        }
+        let config;
+        try {
+          config = await loadMailerConfig(dbService, env);
+        } catch (err) {
+          const msg = err instanceof MailingConfigError ? err.message : '寄信組態錯誤';
+          return Response.json({ error: msg }, { status: 400 });
+        }
+        const result = await sendEmailViaToSend({
+          apiKey: config.apiKey,
+          fromEmail: config.fromEmail,
+          fromName: config.fromName,
+          baseUrl: env.TOSEND_API_BASE_URL,
+          payload: {
+            toEmail: to,
+            toName: to,
+            subject: '【好寄】測試信：設定完成，可以開始寄信囉',
+            html: '<p>嗨，</p><p>如果你看到這封信，代表你的「好寄」設定全部正確：網域、寄件人、ToSend 金鑰都沒問題，可以開始收名單與寄信了。</p><p>這是系統測試信，不會再寄第二次。</p>',
+          },
+        });
+        if (!result.ok) {
+          return Response.json({ error: result.error || 'ToSend 寄送失敗' }, { status: 400 });
+        }
+        return Response.json({ success: true, messageId: result.messageId });
+      }
+
       // ── settings：讀取（加密鍵永不回明文）────────────────
       if (url.pathname === '/api/admin/settings' && request.method === 'GET') {
         const out: Record<string, { value: string | null; set: boolean }> = {};

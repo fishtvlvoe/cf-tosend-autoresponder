@@ -588,6 +588,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
         </div>
         <div class="flex flex-wrap gap-2">
           <button onclick="saveSettings(['tosend_from_name','tosend_from_email'])" class="text-xs bg-stone-900 hover:bg-stone-800 text-white font-medium px-4 py-1.5 rounded transition">儲存</button>
+          <button onclick="sendTestEmail()" class="text-xs bg-stone-100 hover:bg-stone-200 text-stone-700 font-medium px-4 py-1.5 rounded transition">寄測試信</button>
           <button onclick="verifyAndSaveTosend()" id="btn-verify-tosend" class="text-xs bg-emerald-700 hover:bg-emerald-800 text-white font-medium px-4 py-1.5 rounded transition">驗證金鑰</button>
         </div>
         <p id="settings-msg" class="text-xs hidden"></p>
@@ -860,6 +861,24 @@ export const adminConsoleHtml = `<!DOCTYPE html>
       }
     }
 
+    // 寄測試信：用已儲存的設定寄到指定信箱（預設帶入登入 Email）
+    async function sendTestEmail() {
+      const defaultTo = (document.getElementById('set-admin_email') || {}).value || '';
+      const to = prompt('測試信要寄到哪個信箱？', defaultTo);
+      if (!to || !to.trim()) return;
+      showSettingsMsg('寄送中...', true);
+      const res = await apiFetch('/api/admin/send-test', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: to.trim() }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (res.ok && d.success) {
+        showSettingsMsg('✓ 測試信已寄出，請到 ' + to.trim() + ' 收信確認', true);
+      } else {
+        showSettingsMsg('寄送失敗：' + (d.error || '未知原因'), false);
+      }
+    }
+
     // ToSend 金鑰兩步驟：先驗證（不落庫）→ 成功才寫入
     async function verifyAndSaveTosend() {
       const apiKey = document.getElementById('set-tosend_api_key').value.trim();
@@ -877,7 +896,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
         });
         const vd = await vres.json().catch(() => ({}));
         if (!vres.ok) {
-          showSettingsMsg('驗證失敗：' + (vd.error || '未知原因') + (vd.detail ? '（' + vd.detail + '）' : ''), false);
+          showSettingsMsg('驗證失敗：' + (vd.error || '未知原因'), false);
           return;
         }
         const sres = await apiFetch('/api/admin/settings', {
