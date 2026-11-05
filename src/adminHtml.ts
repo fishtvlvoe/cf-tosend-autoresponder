@@ -429,34 +429,20 @@ export const adminConsoleHtml = `<!DOCTYPE html>
 
     <!-- 頁籤 4：排程 (Automations / 新訂閱旅程) -->
     <section id="tab-automations" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6">
-      <aside class="lg:col-span-4 space-y-3">
-        <div class="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-2">排程旅程關卡</div>
-        <div onclick="selectAutomationStep(1)" id="step-item-1" class="p-3.5 rounded-lg border border-stone-900 bg-white shadow-xs cursor-pointer transition">
-          <div class="flex items-center justify-between text-xs mb-1">
-            <span class="font-mono font-bold text-stone-900">關卡 01</span>
-            <span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">即時</span>
-          </div>
-          <div class="text-sm font-medium text-stone-900 truncate" id="step-title-1">歡迎加入：第一份指南與起步清單</div>
-        </div>
-        <div onclick="selectAutomationStep(2)" id="step-item-2" class="p-3.5 rounded-lg border border-stone-200 bg-stone-50 hover:bg-white cursor-pointer transition">
-          <div class="flex items-center justify-between text-xs mb-1">
-            <span class="font-mono font-bold text-stone-500">關卡 02</span>
-            <span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-stone-100 text-stone-600 border border-stone-200">＋24h</span>
-          </div>
-          <div class="text-sm font-medium text-stone-700 truncate" id="step-title-2">第 2 天跟進：核心觀念與最常見盲區</div>
-        </div>
-        <div onclick="selectAutomationStep(3)" id="step-item-3" class="p-3.5 rounded-lg border border-stone-200 bg-stone-50 hover:bg-white cursor-pointer transition">
-          <div class="flex items-center justify-between text-xs mb-1">
-            <span class="font-mono font-bold text-stone-500">關卡 03</span>
-            <span class="px-1.5 py-0.5 rounded text-[10px] font-medium bg-stone-100 text-stone-600 border border-stone-200">＋72h</span>
-          </div>
-          <div class="text-sm font-medium text-stone-700 truncate" id="step-title-3">第 4 天深度解析：實戰案例分享</div>
-        </div>
+      <aside class="lg:col-span-4 space-y-3" id="auto-list-pane">
+        <div class="text-xs font-semibold text-stone-500 uppercase tracking-wider">排程旅程關卡</div>
+        <input type="text" id="auto-step-search" placeholder="搜尋關卡（號碼或主旨）…" oninput="renderStepList()" class="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:border-stone-900" />
+        <div id="step-list" class="space-y-2 lg:max-h-[30rem] lg:overflow-y-auto lg:pr-1"></div>
+        <button onclick="addAutomationStep()" class="w-full text-xs px-3 py-2 rounded-lg border border-dashed border-stone-300 text-stone-500 hover:border-stone-900 hover:text-stone-900 transition flex items-center justify-center gap-1">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+          新增關卡
+        </button>
       </aside>
 
-      <div class="lg:col-span-8 bg-white border border-stone-200 rounded-xl p-6 shadow-xs flex flex-col space-y-5">
+      <div class="lg:col-span-8 bg-white border border-stone-200 rounded-xl p-6 shadow-xs flex flex-col space-y-5 hidden lg:flex" id="auto-editor-pane">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-stone-100">
-          <div>
+          <div class="flex items-center gap-2">
+            <button onclick="showAutoListPane()" class="lg:hidden text-xs px-2.5 py-1.5 rounded border border-stone-300 text-stone-600 hover:bg-stone-50 transition">← 返回</button>
             <h2 class="text-sm font-bold text-stone-900" id="auto-editor-title">編輯關卡 01：歡迎信件</h2>
           </div>
           <div class="flex items-center gap-2">
@@ -1599,39 +1585,78 @@ export const adminConsoleHtml = `<!DOCTYPE html>
         const res = await apiFetch('/api/admin/sequences');
         if (res.ok) {
           const { sequences } = await res.json();
-          if (sequences && sequences.length > 0) {
-            sequences.forEach(seq => {
-              automationsDbList[seq.step_number] = seq;
-              const titleEl = document.getElementById('step-title-' + seq.step_number);
-              if (titleEl) titleEl.innerText = seq.subject;
-            });
-            renderAutoStepToEditor(activeAutoStep);
-          }
+          automationsDbList = {};
+          (sequences || []).forEach(seq => { automationsDbList[seq.step_number] = seq; });
+          const steps = getAutoStepNumbers();
+          if (steps.length && steps.indexOf(activeAutoStep) === -1) activeAutoStep = steps[0];
+          renderStepList();
+          renderAutoStepToEditor(activeAutoStep);
         }
       } catch (err) {
         console.error('[Automations] Load failed:', err);
       }
     }
 
+    function getAutoStepNumbers() {
+      return Object.keys(automationsDbList).map(Number).sort((a, b) => a - b);
+    }
+
+    // 左側關卡選單：固定高度可捲動＋搜尋（號碼或主旨）
+    function renderStepList() {
+      const box = document.getElementById('step-list');
+      if (!box) return;
+      const q = (document.getElementById('auto-step-search').value || '').trim();
+      const steps = getAutoStepNumbers().filter(n => {
+        if (!q) return true;
+        const seq = automationsDbList[n];
+        return String(n) === q || String(n).indexOf(q) !== -1 || ((seq && seq.subject) || '').indexOf(q) !== -1;
+      });
+      if (!steps.length) {
+        box.innerHTML = '<div class="py-4 text-center text-xs text-stone-400">' + (q ? '找不到符合的關卡' : '尚無關卡，點下方「新增關卡」') + '</div>';
+        return;
+      }
+      box.innerHTML = steps.map(n => {
+        const seq = automationsDbList[n];
+        const label = '關卡 ' + String(n).padStart(2, '0');
+        const delay = seq && Number(seq.delay_hours) > 0 ? ('＋' + seq.delay_hours + 'h') : '即時';
+        const subject = (seq && seq.subject) || '（未命名）';
+        const on = n === activeAutoStep;
+        return '<div onclick="selectAutomationStep(' + n + ')" class="p-3 rounded-lg border cursor-pointer transition ' +
+          (on ? 'border-stone-900 bg-white shadow-xs' : 'border-stone-200 bg-stone-50 hover:bg-white') + '">' +
+          '<div class="flex items-center justify-between text-xs mb-1">' +
+            '<span class="font-mono font-bold ' + (on ? 'text-stone-900' : 'text-stone-500') + '">' + label + '</span>' +
+            '<span class="px-1.5 py-0.5 rounded text-[10px] font-medium whitespace-nowrap ' + (delay === '即時' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-stone-100 text-stone-600 border border-stone-200') + '">' + delay + '</span>' +
+          '</div>' +
+          '<div class="text-sm font-medium truncate ' + (on ? 'text-stone-900' : 'text-stone-700') + '">' + escHtml(subject) + '</div>' +
+        '</div>';
+      }).join('');
+    }
+
+    function showAutoEditorPaneMobile() {
+      if (window.innerWidth >= 1024) return;
+      document.getElementById('auto-list-pane').classList.add('hidden');
+      const pane = document.getElementById('auto-editor-pane');
+      pane.classList.remove('hidden');
+      pane.classList.add('flex');
+    }
+    function showAutoListPane() {
+      document.getElementById('auto-list-pane').classList.remove('hidden');
+      const pane = document.getElementById('auto-editor-pane');
+      pane.classList.add('hidden');
+      pane.classList.remove('flex');
+    }
+
     function renderAutoStepToEditor(stepNum) {
       activeAutoStep = stepNum;
-      [1, 2, 3].forEach(s => {
-        const item = document.getElementById('step-item-' + s);
-        if (s === stepNum) {
-          item.className = 'p-3.5 rounded-lg border border-stone-900 bg-white shadow-xs cursor-pointer transition';
-        } else {
-          item.className = 'p-3.5 rounded-lg border border-stone-200 bg-stone-50 hover:bg-white cursor-pointer transition';
-        }
-      });
 
       const d = automationsDbList[stepNum] || {
-        subject: '歡迎加入！這是你的第一份專屬精選指南',
+        subject: '',
         delay_hours: 0,
         is_active: 1,
         content_html: '<p>嗨 <strong>{{name}}</strong>，</p><p>感謝你的訂閱！</p>'
       };
 
-      document.getElementById('auto-editor-title').innerText = '編輯關卡 0' + stepNum + '：' + d.subject;
+      document.getElementById('auto-editor-title').innerText = '編輯關卡 ' + String(stepNum).padStart(2, '0') + (d.subject ? '：' + d.subject : '');
       document.getElementById('auto-input-delay').value = d.delay_hours ?? 0;
       document.getElementById('auto-select-active').value = (d.is_active ?? 1).toString();
       document.getElementById('auto-input-subject').value = d.subject || '';
@@ -1640,7 +1665,18 @@ export const adminConsoleHtml = `<!DOCTYPE html>
     }
 
     function selectAutomationStep(stepNum) {
+      renderStepList();
       renderAutoStepToEditor(stepNum);
+      showAutoEditorPaneMobile();
+    }
+
+    function addAutomationStep() {
+      const steps = getAutoStepNumbers();
+      const next = steps.length ? Math.max(...steps) + 1 : 1;
+      activeAutoStep = next;
+      renderStepList();
+      renderAutoStepToEditor(next);
+      showAutoEditorPaneMobile();
     }
 
     async function saveAutomationStep() {
@@ -1674,7 +1710,7 @@ export const adminConsoleHtml = `<!DOCTYPE html>
         });
         const d = await res.json();
         if (res.ok && d.success) {
-          alert('關卡 0' + activeAutoStep + ' 已成功寫入 Cloudflare D1 資料庫！重新整理將持續保存。');
+          alert('關卡 ' + String(activeAutoStep).padStart(2, '0') + ' 已成功寫入 Cloudflare D1 資料庫！重新整理將持續保存。');
           loadAutomationsData();
         } else {
           alert('儲存失敗：' + (d.error || '未知原因'));
