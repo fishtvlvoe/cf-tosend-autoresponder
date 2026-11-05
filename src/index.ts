@@ -325,31 +325,26 @@ export default {
         }
         const baseUrl = (env.TOSEND_API_BASE_URL || 'https://api.tosend.com/v2').replace(/\/+$/, '');
         try {
-          const ctrl = new AbortController();
-          const timer = setTimeout(() => ctrl.abort(), 10000);
-          const res = await fetch(`${baseUrl}/emails`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${body.api_key}`,
-            },
-            body: JSON.stringify({
-              from: `${body.from_name || '好寄'} <${body.from_email}>`,
-              to: [body.from_email],
+          // 與正式寄信共用 tosend.ts（from/to 為物件格式），避免自組 payload 造成 422
+          const result = await sendEmailViaToSend({
+            apiKey: body.api_key,
+            fromEmail: body.from_email,
+            fromName: body.from_name || '好寄',
+            baseUrl,
+            payload: {
+              toEmail: body.from_email,
+              toName: body.from_name || '好寄',
               subject: '【好寄】設定驗證信',
               html: '<p>這是一封系統設定驗證信。收到代表你的 ToSend 金鑰與寄件人設定正確。</p>',
-            }),
-            signal: ctrl.signal,
+            },
           });
-          clearTimeout(timer);
-          if (!res.ok) {
-            const raw = await res.text().catch(() => '');
-            const reason = res.status === 401 || res.status === 403
+          if (!result.ok) {
+            const reason = result.statusCode === 401 || result.statusCode === 403
               ? 'API Key 無效'
-              : res.status === 422 || res.status === 400
+              : result.statusCode === 422 || result.statusCode === 400
                 ? '寄件信箱尚未在 ToSend 驗證，或格式不正確'
-                : `ToSend 回應錯誤（${res.status}）`;
-            return Response.json({ error: reason, detail: raw.slice(0, 300) }, { status: 400 });
+                : `ToSend 回應錯誤（${result.statusCode}）`;
+            return Response.json({ error: reason, detail: (result.error || '').slice(0, 300) }, { status: 400 });
           }
           return Response.json({ success: true });
         } catch (err: any) {

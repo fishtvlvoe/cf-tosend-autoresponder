@@ -102,7 +102,7 @@ export async function sendEmailViaToSend(params: {
       return {
         ok: false,
         statusCode: response.status,
-        retryAfter: response.headers.get('Retry-After') || undefined,
+        retryAfter: (response.headers && typeof response.headers.get === 'function' && response.headers.get('Retry-After')) || undefined,
         error: errMsg,
       };
     }
